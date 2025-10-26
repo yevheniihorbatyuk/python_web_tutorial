@@ -20,10 +20,6 @@ Tech Stack (спрощена версія):
 - Pandas для feature engineering
 """
 
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -35,7 +31,12 @@ import json
 
 init(autoreset=True)
 
-from utils.db import ConnectionPool, DatabaseConfig, get_cursor, get_db_connection
+from python_web_tutorial.utils.db import (
+    ConnectionPool,
+    DatabaseConfig,
+    get_cursor,
+    get_db_connection,
+)
 
 
 # ============================================

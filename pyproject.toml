@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "python-web-tutorial"
+version = "0.1.0"
+description = "Teaching materials for Python async programming and PostgreSQL."
+readme = "README.md"
+authors = [{ name = "Python Web Team" }]
+requires-python = ">=3.10"
+dependencies = [
+    "aiohttp==3.9.1",
+    "asyncio==3.4.3",
+    "psycopg2-binary==2.9.9",
+    "jupyter==1.0.0",
+    "jupyterlab==4.0.9",
+    "jupytext==1.16.0",
+    "ipykernel==6.27.1",
+    "pandas==2.1.4",
+    "numpy==1.26.2",
+    "matplotlib==3.8.2",
+    "seaborn==0.13.0",
+    "python-dotenv==1.0.0",
+    "colorama==0.4.6",
+    "websockets==12.0",
+    "redis==5.0.1",
+    "requests==2.31.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["python_web_tutorial*"]
+
+[tool.setuptools.package-data]
+"python_web_tutorial" = [
+    "data/*.sql",
+    "sql_examples/*.sql",
+]

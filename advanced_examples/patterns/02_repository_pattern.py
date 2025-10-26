@@ -15,19 +15,15 @@ Modern архітектурні паттерни для clean code:
 - Type-safe з Python type hints
 """
 
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
 from abc import ABC, abstractmethod
-from typing import List, Optional, Protocol, Generic, TypeVar
+from typing import List, Optional, Generic, TypeVar
 from dataclasses import dataclass
 from datetime import datetime
 from contextlib import contextmanager
 from psycopg2.extras import RealDictCursor
 from colorama import Fore, init
 
-from utils.db import ConnectionPool, DatabaseConfig, get_cursor
+from python_web_tutorial.utils.db import ConnectionPool, DatabaseConfig, get_cursor
 
 init(autoreset=True)
 

@@ -1,80 +1,73 @@
 # 🚀 Швидкий Старт
 
-## Крок 1: Підготовка
+## Крок 1: Клонувати та налаштувати Python
 
 ```bash
-# Клонувати/створити папку проєкту
-cd module6_async_db
+# Клонувати репозиторій
+git clone <repository-url>
+cd python_web_tutorial
 
 # Створити віртуальне середовище
-python -m venv venv
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-# Активувати (Linux/Mac)
-source venv/bin/activate
-
-# Активувати (Windows)
-venv\Scripts\activate
-
-# Встановити залежності
-pip install -r requirements.txt
+# Встановити пакет у режимі розробки (включно з pytest)
+pip install -e .[dev]
 ```
 
 ## Крок 2: Запустити PostgreSQL
 
 ```bash
-# Скопіювати .env файл
+# Скопіювати змінні середовища
 cp .env.example .env
 
-# Запустити тільки PostgreSQL (мінімальний режим)
+# Підняти інфраструктуру
 docker-compose up -d
-
-# АБО запустити повний стек (PostgreSQL + pgAdmin + Redis)
-docker-compose --profile full up -d
 
 # Перевірити статус
 docker-compose ps
 
-# Переглянути логи
+# Переглянути логи (опціонально)
 docker-compose logs -f postgres
 ```
 
-## Крок 3: Перевірити підключення
+## Крок 3: Підготувати навчальні дані
 
 ```bash
-# Підключитися до PostgreSQL через psql
-docker-compose exec postgres psql -U admin -d learning_db
+# Створити схему та завантажити демо-дані
+python -m python_web_tutorial.tools.bootstrap_data
 
-# Виконати тестовий запит
-SELECT COUNT(*) FROM customers;
+# Перевірити стан таблиць без змін
+python -m python_web_tutorial.tools.bootstrap_data --check
 
-# Вийти
-\q
+# Повторно залити демо-дані
+python -m python_web_tutorial.tools.bootstrap_data --force
 ```
 
 ## Крок 4: Запустити Python приклади
 
 ```bash
 # 1. Event Loop та async basics
-python async_examples/01_async_basics.py
+python python_web_tutorial/async_examples/01_async_basics.py
 
 # 2. Асинхронні HTTP запити
-python async_examples/02_async_http_client.py
+python python_web_tutorial/async_examples/02_async_http_client.py
 
 # 3. WebSockets (опціонально)
-python async_examples/03_websockets_demo.py
+python python_web_tutorial/async_examples/03_websockets_demo.py
 
 # 4. Робота з PostgreSQL
-python python_db/05_db_connection.py
+python python_web_tutorial/python_db/05_db_connection.py
 ```
 
 ## Крок 5: Jupyter Notebook
 
 ```bash
-# Конвертувати .py в .ipynb
-jupytext --to notebook python_db/06_jupyter_db_operations.py
+# Конвертувати .py в .ipynb (опціонально)
+jupytext --to notebook python_web_tutorial/python_db/06_jupyter_db_operations.py
 
 # Запустити Jupyter
-jupyter notebook python_db/06_jupyter_db_operations.ipynb
+jupyter notebook python_web_tutorial/python_db/06_jupyter_db_operations.ipynb
 ```
 
 ## Доступ до сервісів
@@ -84,11 +77,11 @@ jupyter notebook python_db/06_jupyter_db_operations.ipynb
   - Password: `admin123`
   - Database: `learning_db`
 
-- **pgAdmin** (якщо запущено --profile full): `http://localhost:5050`
+- **pgAdmin** (якщо запущено `--profile full`): `http://localhost:5050`
   - Email: `admin@example.com`
   - Password: `admin123`
 
-- **Redis** (якщо запущено --profile full): `localhost:6379`
+- **Redis** (якщо запущено `--profile full`): `localhost:6379`
 
 ## Корисні команди Docker
 
@@ -96,7 +89,7 @@ jupyter notebook python_db/06_jupyter_db_operations.ipynb
 # Зупинити все
 docker-compose down
 
-# Зупинити і видалити volumes (ВИДАЛИТЬ ДАНІ!)
+# Зупинити і видалити volumes (видалить дані!)
 docker-compose down -v
 
 # Перезапустити PostgreSQL
@@ -139,18 +132,19 @@ docker-compose restart postgres
 ### Порт вже зайнятий
 
 Змініть порт у `.env` файлі:
+
 ```
 POSTGRES_PORT=5433  # Змініть на вільний порт
 ```
 
-### Помилка з залежностями Python
+### Проблеми з Python залежностями
 
 ```bash
 # Оновити pip
 pip install --upgrade pip
 
-# Переустановити залежності
-pip install -r requirements.txt --force-reinstall
+# Перевстановити пакет у режимі розробки
+pip install --force-reinstall -e .[dev]
 ```
 
 ## Очищення
@@ -163,13 +157,13 @@ docker-compose down
 docker-compose down -v
 
 # Видалити віртуальне середовище
-rm -rf venv
+rm -rf .venv
 ```
 
 ## Наступні кроки
 
 1. Пройдіть всі Python приклади
-2. Виконайте SQL задачі з `sql_examples/04_sql_examples.sql`
+2. Виконайте SQL задачі з `python_web_tutorial/sql_examples/04_sql_examples.sql`
 3. Дослідіть дані через Jupyter Notebook
 4. Спробуйте написати власні асинхронні скрипти
 5. Створіть свої SQL запити та аналітику

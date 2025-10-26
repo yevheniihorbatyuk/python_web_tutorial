@@ -122,8 +122,6 @@
 
 # %%
 # Імпорти для всього notebook
-import sys
-import os
 import asyncio
 import time
 from dataclasses import dataclass
@@ -135,10 +133,7 @@ import warnings
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-from utils.db import DatabaseConfig, get_cursor, get_db_connection
-
-# Додаємо поточну директорію до шляху Python (для локальних модулів)
-sys.path.insert(0, os.path.abspath('.'))
+from python_web_tutorial.utils.db import DatabaseConfig, get_cursor, get_db_connection
 
 # Вимикаємо непотрібні попередження
 warnings.filterwarnings('ignore')
