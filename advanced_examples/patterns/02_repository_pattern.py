@@ -24,9 +24,10 @@ from typing import List, Optional, Protocol, Generic, TypeVar
 from dataclasses import dataclass
 from datetime import datetime
 from contextlib import contextmanager
-import psycopg2
 from psycopg2.extras import RealDictCursor
 from colorama import Fore, init
+
+from utils.db import ConnectionPool, DatabaseConfig, get_cursor
 
 init(autoreset=True)
 
@@ -129,37 +130,47 @@ class PostgresCustomerRepository(ICustomerRepository):
     Приховує всі деталі роботи з БД
     """
 
-    def __init__(self, connection_string: str):
-        self.connection_string = connection_string
+    def __init__(
+        self,
+        config: Optional[DatabaseConfig] = None,
+        *,
+        connection_pool: Optional[ConnectionPool] = None,
+    ) -> None:
+        if config and connection_pool:
+            raise ValueError("Provide either config or connection_pool, not both")
+        self._config: Optional[DatabaseConfig] = config
+        self._connection_pool = connection_pool
+
+    def _get_config(self) -> DatabaseConfig:
+        if self._config is None:
+            self._config = DatabaseConfig()
+        return self._config
 
     @contextmanager
-    def _get_cursor(self):
-        """Context manager для cursor"""
-        conn = psycopg2.connect(self.connection_string)
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        try:
-            yield cursor, conn
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            cursor.close()
-            conn.close()
+    def _cursor_from_pool(self):
+        if self._connection_pool is None:
+            raise RuntimeError("Connection pool is not configured")
+        with self._connection_pool.get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                yield cursor
+
+    def _cursor_manager(self):
+        return (
+            self._cursor_from_pool()
+            if self._connection_pool
+            else get_cursor(self._get_config(), dict_cursor=True)
+        )
 
     def get_by_id(self, id: int) -> Optional[Customer]:
         """Get customer by ID"""
-        with self._get_cursor() as (cursor, conn):
-            cursor.execute(
-                "SELECT * FROM customers WHERE id = %s",
-                (id,)
-            )
+        with self._cursor_manager() as cursor:
+            cursor.execute("SELECT * FROM customers WHERE id = %s", (id,))
             row = cursor.fetchone()
             return self._map_to_entity(row) if row else None
 
     def get_all(self, limit: int = 100) -> List[Customer]:
         """Get all customers"""
-        with self._get_cursor() as (cursor, conn):
+        with self._cursor_manager() as cursor:
             cursor.execute("SELECT * FROM customers LIMIT %s", (limit,))
             rows = cursor.fetchall()
             return [self._map_to_entity(row) for row in rows]
@@ -172,11 +183,16 @@ class PostgresCustomerRepository(ICustomerRepository):
             RETURNING id, first_name, last_name, email, city, registration_date;
         """
 
-        with self._get_cursor() as (cursor, conn):
+        with self._cursor_manager() as cursor:
             cursor.execute(
                 query,
-                (entity.first_name, entity.last_name, entity.email,
-                 entity.city, entity.registration_date or datetime.now())
+                (
+                    entity.first_name,
+                    entity.last_name,
+                    entity.email,
+                    entity.city,
+                    entity.registration_date or datetime.now(),
+                ),
             )
             row = cursor.fetchone()
             return self._map_to_entity(row)
@@ -190,31 +206,36 @@ class PostgresCustomerRepository(ICustomerRepository):
             RETURNING id, first_name, last_name, email, city, registration_date;
         """
 
-        with self._get_cursor() as (cursor, conn):
+        with self._cursor_manager() as cursor:
             cursor.execute(
                 query,
-                (entity.first_name, entity.last_name, entity.email,
-                 entity.city, entity.id)
+                (
+                    entity.first_name,
+                    entity.last_name,
+                    entity.email,
+                    entity.city,
+                    entity.id,
+                ),
             )
             row = cursor.fetchone()
             return self._map_to_entity(row) if row else entity
 
     def delete(self, id: int) -> bool:
         """Delete customer"""
-        with self._get_cursor() as (cursor, conn):
+        with self._cursor_manager() as cursor:
             cursor.execute("DELETE FROM customers WHERE id = %s", (id,))
             return cursor.rowcount > 0
 
     def find_by_email(self, email: str) -> Optional[Customer]:
         """Find by email"""
-        with self._get_cursor() as (cursor, conn):
+        with self._cursor_manager() as cursor:
             cursor.execute("SELECT * FROM customers WHERE email = %s", (email,))
             row = cursor.fetchone()
             return self._map_to_entity(row) if row else None
 
     def find_by_city(self, city: str) -> List[Customer]:
         """Find all customers from city"""
-        with self._get_cursor() as (cursor, conn):
+        with self._cursor_manager() as cursor:
             cursor.execute("SELECT * FROM customers WHERE city = %s", (city,))
             rows = cursor.fetchall()
             return [self._map_to_entity(row) for row in rows]
@@ -230,7 +251,7 @@ class PostgresCustomerRepository(ICustomerRepository):
             LIMIT %s;
         """
 
-        with self._get_cursor() as (cursor, conn):
+        with self._cursor_manager() as cursor:
             cursor.execute(query, (limit,))
             rows = cursor.fetchall()
             return [self._map_to_entity(row) for row in rows]
@@ -371,13 +392,21 @@ class RepositoryFactory:
     """
 
     @staticmethod
-    def create_customer_repository(type: str = "postgres") -> ICustomerRepository:
+    def create_customer_repository(
+        type: str = "postgres",
+        *,
+        config: Optional[DatabaseConfig] = None,
+        connection_pool: Optional[ConnectionPool] = None,
+    ) -> ICustomerRepository:
         """
         Create customer repository based on type
         """
         if type == "postgres":
-            connection_string = "host=localhost dbname=learning_db user=admin password=admin123"
-            return PostgresCustomerRepository(connection_string)
+            if config and connection_pool:
+                raise ValueError("Provide either config or connection_pool, not both")
+            if connection_pool:
+                return PostgresCustomerRepository(connection_pool=connection_pool)
+            return PostgresCustomerRepository(config=config)
         elif type == "memory":
             return InMemoryCustomerRepository()
         else:

@@ -24,16 +24,18 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 import pandas as pd
-import psycopg2
-from psycopg2.extras import RealDictCursor, execute_batch
+from psycopg2.extras import execute_batch
 from colorama import Fore, init
 import json
 
 init(autoreset=True)
+
+from utils.db import ConnectionPool, DatabaseConfig, get_cursor, get_db_connection
 
 
 # ============================================
@@ -75,85 +77,110 @@ class FeatureStore:
     3. Feature Registry - metadata про features
     """
 
-    def __init__(self, connection_string: str):
-        self.connection_string = connection_string
+    def __init__(
+        self,
+        config: Optional[DatabaseConfig] = None,
+        *,
+        connection_pool: Optional[ConnectionPool] = None,
+    ) -> None:
+        if config and connection_pool:
+            raise ValueError("Provide either config or connection_pool, not both")
+        self._config: Optional[DatabaseConfig] = config
+        self._connection_pool = connection_pool
         self._init_tables()
 
-    def _get_connection(self):
-        """Get database connection"""
-        return psycopg2.connect(self.connection_string)
+    def _get_config(self) -> DatabaseConfig:
+        if self._config is None:
+            self._config = DatabaseConfig()
+        return self._config
+
+    @contextmanager
+    def _connection_manager(self):
+        if self._connection_pool is not None:
+            with self._connection_pool.get_connection() as conn:
+                yield conn
+        else:
+            with get_db_connection(self._get_config()) as conn:
+                yield conn
+
+    @contextmanager
+    def _cursor_from_pool(self):
+        with self._connection_manager() as conn:
+            with conn.cursor() as cursor:
+                yield cursor
+
+    def _cursor_manager(self):
+        return (
+            self._cursor_from_pool()
+            if self._connection_pool is not None
+            else get_cursor(self._get_config())
+        )
 
     def _init_tables(self):
         """Initialize feature store tables"""
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with self._cursor_manager() as cursor:
+            # Feature Registry - metadata
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS feature_registry (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100) UNIQUE NOT NULL,
+                    description TEXT,
+                    feature_type VARCHAR(50),
+                    entity VARCHAR(50),
+                    version VARCHAR(20),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
 
-        # Feature Registry - metadata
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS feature_registry (
-                id SERIAL PRIMARY KEY,
-                name VARCHAR(100) UNIQUE NOT NULL,
-                description TEXT,
-                feature_type VARCHAR(50),
-                entity VARCHAR(50),
-                version VARCHAR(20),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
+            # Customer Features - offline store
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS customer_features (
+                    customer_id INTEGER PRIMARY KEY,
 
-        # Customer Features - offline store
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS customer_features (
-                customer_id INTEGER PRIMARY KEY,
+                    -- RFM Features
+                    recency_days INTEGER,
+                    frequency INTEGER,
+                    monetary_value DECIMAL(12,2),
 
-                -- RFM Features
-                recency_days INTEGER,
-                frequency INTEGER,
-                monetary_value DECIMAL(12,2),
+                    -- Behavioral Features
+                    avg_order_value DECIMAL(10,2),
+                    days_since_registration INTEGER,
+                    total_orders INTEGER,
 
-                -- Behavioral Features
-                avg_order_value DECIMAL(10,2),
-                days_since_registration INTEGER,
-                total_orders INTEGER,
+                    -- Derived Features
+                    customer_lifetime_value DECIMAL(12,2),
+                    churn_risk_score DECIMAL(3,2),
+                    customer_segment VARCHAR(50),
 
-                -- Derived Features
-                customer_lifetime_value DECIMAL(12,2),
-                churn_risk_score DECIMAL(3,2),
-                customer_segment VARCHAR(50),
+                    -- Metadata
+                    computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    version VARCHAR(20) DEFAULT 'v1'
+                );
+            """)
 
-                -- Metadata
-                computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                version VARCHAR(20) DEFAULT 'v1'
-            );
-        """)
+            # Product Features
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS product_features (
+                    product_id INTEGER PRIMARY KEY,
 
-        # Product Features
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS product_features (
-                product_id INTEGER PRIMARY KEY,
+                    -- Popularity Features
+                    total_orders INTEGER,
+                    total_quantity_sold INTEGER,
+                    total_revenue DECIMAL(12,2),
 
-                -- Popularity Features
-                total_orders INTEGER,
-                total_quantity_sold INTEGER,
-                total_revenue DECIMAL(12,2),
+                    -- Time Features
+                    days_since_last_order INTEGER,
+                    avg_orders_per_week DECIMAL(6,2),
 
-                -- Time Features
-                days_since_last_order INTEGER,
-                avg_orders_per_week DECIMAL(6,2),
+                    -- Price Features
+                    current_price DECIMAL(10,2),
+                    avg_selling_price DECIMAL(10,2),
+                    price_percentile DECIMAL(3,2),
 
-                -- Price Features
-                current_price DECIMAL(10,2),
-                avg_selling_price DECIMAL(10,2),
-                price_percentile DECIMAL(3,2),
-
-                computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                version VARCHAR(20) DEFAULT 'v1'
-            );
-        """)
-
-        conn.commit()
-        cursor.close()
-        conn.close()
+                    computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    version VARCHAR(20) DEFAULT 'v1'
+                );
+            """)
 
     # ============================================
     # FEATURE ENGINEERING
@@ -165,8 +192,6 @@ class FeatureStore:
         Production: це буде Spark/Dask job
         """
         print(f"{Fore.YELLOW}🔧 Computing customer features...")
-
-        conn = self._get_connection()
 
         # Complex SQL для feature extraction
         query = """
@@ -213,8 +238,8 @@ class FeatureStore:
         SELECT * FROM customer_metrics;
         """
 
-        df = pd.read_sql_query(query, conn)
-        conn.close()
+        with self._connection_manager() as conn:
+            df = pd.read_sql_query(query, conn)
 
         print(f"{Fore.GREEN}✓ Computed {len(df)} customer feature sets")
         return df
@@ -222,8 +247,6 @@ class FeatureStore:
     def compute_product_features(self) -> pd.DataFrame:
         """Compute product features"""
         print(f"{Fore.YELLOW}🔧 Computing product features...")
-
-        conn = self._get_connection()
 
         query = """
         WITH product_metrics AS (
@@ -261,8 +284,8 @@ class FeatureStore:
         JOIN price_percentiles pp ON pm.product_id = pp.product_id;
         """
 
-        df = pd.read_sql_query(query, conn)
-        conn.close()
+        with self._connection_manager() as conn:
+            df = pd.read_sql_query(query, conn)
 
         print(f"{Fore.GREEN}✓ Computed {len(df)} product feature sets")
         return df
@@ -278,90 +301,87 @@ class FeatureStore:
         """
         print(f"{Fore.YELLOW}💾 Saving {entity_type} features to offline store...")
 
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with self._cursor_manager() as cursor:
+            if entity_type == "customer":
+                # Prepare data
+                features_df['computed_at'] = datetime.now()
+                features_df['version'] = 'v1'
 
-        if entity_type == "customer":
-            # Prepare data
-            features_df['computed_at'] = datetime.now()
-            features_df['version'] = 'v1'
+                # Build upsert query
+                columns = ['customer_id', 'recency_days', 'frequency', 'monetary_value',
+                          'avg_order_value', 'days_since_registration', 'total_orders',
+                          'customer_lifetime_value', 'churn_risk_score', 'customer_segment',
+                          'computed_at', 'version']
 
-            # Build upsert query
-            columns = ['customer_id', 'recency_days', 'frequency', 'monetary_value',
-                      'avg_order_value', 'days_since_registration', 'total_orders',
-                      'customer_lifetime_value', 'churn_risk_score', 'customer_segment',
-                      'computed_at', 'version']
+                # Rename DataFrame columns to match DB
+                df_renamed = features_df.rename(columns={
+                    'total_spent': 'monetary_value',
+                    'total_orders': 'frequency'
+                })
 
-            # Rename DataFrame columns to match DB
-            df_renamed = features_df.rename(columns={
-                'total_spent': 'monetary_value',
-                'total_orders': 'frequency'
-            })
+                values = []
+                for _, row in df_renamed.iterrows():
+                    values.append(tuple(row[col] for col in columns))
 
-            values = []
-            for _, row in df_renamed.iterrows():
-                values.append(tuple(row[col] for col in columns))
+                # UPSERT query
+                query = """
+                    INSERT INTO customer_features
+                    (customer_id, recency_days, frequency, monetary_value, avg_order_value,
+                     days_since_registration, total_orders, customer_lifetime_value,
+                     churn_risk_score, customer_segment, computed_at, version)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (customer_id) DO UPDATE SET
+                        recency_days = EXCLUDED.recency_days,
+                        frequency = EXCLUDED.frequency,
+                        monetary_value = EXCLUDED.monetary_value,
+                        avg_order_value = EXCLUDED.avg_order_value,
+                        days_since_registration = EXCLUDED.days_since_registration,
+                        total_orders = EXCLUDED.total_orders,
+                        customer_lifetime_value = EXCLUDED.customer_lifetime_value,
+                        churn_risk_score = EXCLUDED.churn_risk_score,
+                        customer_segment = EXCLUDED.customer_segment,
+                        computed_at = EXCLUDED.computed_at,
+                        version = EXCLUDED.version;
+                """
 
-            # UPSERT query
-            query = """
-                INSERT INTO customer_features
-                (customer_id, recency_days, frequency, monetary_value, avg_order_value,
-                 days_since_registration, total_orders, customer_lifetime_value,
-                 churn_risk_score, customer_segment, computed_at, version)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (customer_id) DO UPDATE SET
-                    recency_days = EXCLUDED.recency_days,
-                    frequency = EXCLUDED.frequency,
-                    monetary_value = EXCLUDED.monetary_value,
-                    avg_order_value = EXCLUDED.avg_order_value,
-                    days_since_registration = EXCLUDED.days_since_registration,
-                    total_orders = EXCLUDED.total_orders,
-                    customer_lifetime_value = EXCLUDED.customer_lifetime_value,
-                    churn_risk_score = EXCLUDED.churn_risk_score,
-                    customer_segment = EXCLUDED.customer_segment,
-                    computed_at = EXCLUDED.computed_at,
-                    version = EXCLUDED.version;
-            """
+                execute_batch(cursor, query, values, page_size=100)
 
-            execute_batch(cursor, query, values, page_size=100)
+            elif entity_type == "product":
+                # Similar for products
+                features_df['computed_at'] = datetime.now()
+                features_df['version'] = 'v1'
 
-        elif entity_type == "product":
-            # Similar for products
-            features_df['computed_at'] = datetime.now()
-            features_df['version'] = 'v1'
+                columns = ['product_id', 'total_orders', 'total_quantity_sold', 'total_revenue',
+                          'days_since_last_order', 'avg_orders_per_week', 'current_price',
+                          'avg_selling_price', 'price_percentile', 'computed_at', 'version']
 
-            columns = ['product_id', 'total_orders', 'total_quantity_sold', 'total_revenue',
-                      'days_since_last_order', 'avg_orders_per_week', 'current_price',
-                      'avg_selling_price', 'price_percentile', 'computed_at', 'version']
+                values = []
+                for _, row in features_df.iterrows():
+                    values.append(tuple(row[col] for col in columns))
 
-            values = []
-            for _, row in features_df.iterrows():
-                values.append(tuple(row[col] for col in columns))
+                query = """
+                    INSERT INTO product_features
+                    (product_id, total_orders, total_quantity_sold, total_revenue,
+                     days_since_last_order, avg_orders_per_week, current_price,
+                     avg_selling_price, price_percentile, computed_at, version)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (product_id) DO UPDATE SET
+                        total_orders = EXCLUDED.total_orders,
+                        total_quantity_sold = EXCLUDED.total_quantity_sold,
+                        total_revenue = EXCLUDED.total_revenue,
+                        days_since_last_order = EXCLUDED.days_since_last_order,
+                        avg_orders_per_week = EXCLUDED.avg_orders_per_week,
+                        current_price = EXCLUDED.current_price,
+                        avg_selling_price = EXCLUDED.avg_selling_price,
+                        price_percentile = EXCLUDED.price_percentile,
+                        computed_at = EXCLUDED.computed_at,
+                        version = EXCLUDED.version;
+                """
 
-            query = """
-                INSERT INTO product_features
-                (product_id, total_orders, total_quantity_sold, total_revenue,
-                 days_since_last_order, avg_orders_per_week, current_price,
-                 avg_selling_price, price_percentile, computed_at, version)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (product_id) DO UPDATE SET
-                    total_orders = EXCLUDED.total_orders,
-                    total_quantity_sold = EXCLUDED.total_quantity_sold,
-                    total_revenue = EXCLUDED.total_revenue,
-                    days_since_last_order = EXCLUDED.days_since_last_order,
-                    avg_orders_per_week = EXCLUDED.avg_orders_per_week,
-                    current_price = EXCLUDED.current_price,
-                    avg_selling_price = EXCLUDED.avg_selling_price,
-                    price_percentile = EXCLUDED.price_percentile,
-                    computed_at = EXCLUDED.computed_at,
-                    version = EXCLUDED.version;
-            """
+                execute_batch(cursor, query, values, page_size=100)
 
-            execute_batch(cursor, query, values, page_size=100)
-
-        conn.commit()
-        cursor.close()
-        conn.close()
+            else:
+                raise ValueError(f"Unknown entity type: {entity_type}")
 
         print(f"{Fore.GREEN}✓ Saved {len(features_df)} {entity_type} feature sets")
 
@@ -370,7 +390,8 @@ class FeatureStore:
         Get features для specific entities
         Online serving pattern
         """
-        conn = self._get_connection()
+        if not entity_ids:
+            return pd.DataFrame()
 
         if entity_type == "customer":
             placeholders = ','.join(['%s'] * len(entity_ids))
@@ -381,8 +402,8 @@ class FeatureStore:
         else:
             raise ValueError(f"Unknown entity type: {entity_type}")
 
-        df = pd.read_sql_query(query, conn, params=entity_ids)
-        conn.close()
+        with self._connection_manager() as conn:
+            df = pd.read_sql_query(query, conn, params=entity_ids)
 
         return df
 
@@ -394,8 +415,6 @@ class FeatureStore:
         """
         print(f"{Fore.YELLOW}📊 Preparing training dataset for {entity_type}...")
 
-        conn = self._get_connection()
-
         if entity_type == "customer":
             if feature_names:
                 columns = ['customer_id'] + feature_names
@@ -404,9 +423,19 @@ class FeatureStore:
                 column_str = '*'
 
             query = f"SELECT {column_str} FROM customer_features"
+        elif entity_type == "product":
+            if feature_names:
+                columns = ['product_id'] + feature_names
+                column_str = ', '.join(columns)
+            else:
+                column_str = '*'
 
-        df = pd.read_sql_query(query, conn)
-        conn.close()
+            query = f"SELECT {column_str} FROM product_features"
+        else:
+            raise ValueError(f"Unknown entity type: {entity_type}")
+
+        with self._connection_manager() as conn:
+            df = pd.read_sql_query(query, conn)
 
         print(f"{Fore.GREEN}✓ Training dataset ready: {df.shape}")
         return df
@@ -474,8 +503,8 @@ def demo_feature_engineering():
     print(f"{Fore.CYAN}{'='*70}\n")
 
     # Initialize feature store
-    connection_string = "host=localhost dbname=learning_db user=admin password=admin123"
-    fs = FeatureStore(connection_string)
+    config = DatabaseConfig()
+    fs = FeatureStore(config=config)
 
     # Compute customer features
     customer_features = fs.compute_customer_features()
