@@ -19,9 +19,14 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from colorama import Fore, init
-from utils.helpers import get_db_connection, execute_query, timing
+from typing import Any, Dict
+
+from utils.helpers import DatabaseConfig, get_db_connection, execute_query, timing
 
 init(autoreset=True)
+
+
+DB_PARAMS: Dict[str, Any] = DatabaseConfig().as_dict()
 
 
 # ============================================
@@ -36,13 +41,7 @@ def demo_basic_connection():
 
     try:
         # Підключення вручну
-        conn = psycopg2.connect(
-            host="localhost",
-            port="5432",
-            database="learning_db",
-            user="admin",
-            password="admin123"
-        )
+        conn = psycopg2.connect(**DB_PARAMS)
 
         print(f"{Fore.GREEN}✅ Підключення успішне!")
 
@@ -287,12 +286,7 @@ def demo_transactions():
 
     conn = None
     try:
-        conn = psycopg2.connect(
-            host="localhost",
-            database="learning_db",
-            user="admin",
-            password="admin123"
-        )
+        conn = psycopg2.connect(**DB_PARAMS)
 
         cursor = conn.cursor()
 

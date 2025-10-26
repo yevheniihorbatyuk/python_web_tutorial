@@ -126,11 +126,18 @@ import sys
 import os
 import asyncio
 import time
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
+from pathlib import Path
+from typing import List, Dict, Any, Optional, Tuple
 import warnings
 
-# Додаємо поточну директорію до шляху Python
+import psycopg2
+from psycopg2.extras import RealDictCursor
+
+from utils.db import DatabaseConfig, get_cursor, get_db_connection
+
+# Додаємо поточну директорію до шляху Python (для локальних модулів)
 sys.path.insert(0, os.path.abspath('.'))
 
 # Вимикаємо непотрібні попередження
@@ -139,83 +146,122 @@ warnings.filterwarnings('ignore')
 print("✅ Імпорти завершено успішно")
 
 
+# Універсальні допоміжні типи та утиліти
+@dataclass(slots=True)
+class EnvironmentStatus:
+    """Зберігає інформацію про стан навчального середовища."""
+
+    docker_running: bool = False
+    postgres_running: bool = False
+    notes: Optional[str] = None
+
+
+def print_section(title: str, symbol: str = "=") -> None:
+    """Допоміжний вивід заголовків з однаковим форматуванням."""
+
+    border = symbol * 80
+    print(f"\n{border}\n{title}\n{border}")
+
+
 # %% [markdown]
 #  ### Перевірка Docker та PostgreSQL
 
 # %%
+import shutil
 import subprocess
 
-def check_docker():
-    """Перевірка чи запущено Docker"""
+
+def check_docker(status: EnvironmentStatus) -> EnvironmentStatus:
+    """Перевіряє наявність Docker та активність контейнера з PostgreSQL."""
+
+    if shutil.which("docker") is None:
+        print("❌ Docker CLI не знайдено у PATH")
+        status.notes = "Встановіть Docker Desktop або Docker Engine."
+        return status
+
     try:
-        result = subprocess.run(['docker', 'ps'],
-                              capture_output=True,
-                              text=True,
-                              timeout=5)
-        if result.returncode == 0:
-            print("✅ Docker запущено")
+        result = subprocess.run(
+            ["docker", "ps", "--format", "{{.Names}}"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except Exception as exc:  # pragma: no cover - інформативний вивід для студентів
+        print(f"❌ Помилка перевірки Docker: {exc}")
+        status.notes = "Перевірте, чи запущено Docker Desktop."
+        return status
 
-            # Перевірка PostgreSQL контейнера
-            if 'postgres' in result.stdout:
-                print("✅ PostgreSQL контейнер працює")
-                return True
-            else:
-                print("⚠️ PostgreSQL контейнер не знайдено")
-                print("💡 Запустіть: docker-compose up -d")
-                return False
+    status.docker_running = result.returncode == 0
+    if status.docker_running:
+        print("✅ Docker запущено")
+        containers = result.stdout.splitlines()
+        status.postgres_running = any("postgres" in name for name in containers)
+        if status.postgres_running:
+            print("✅ PostgreSQL контейнер працює")
         else:
-            print("❌ Docker не запущено")
-            return False
-    except Exception as e:
-        print(f"❌ Помилка перевірки Docker: {e}")
-        return False
+            print("⚠️ PostgreSQL контейнер не знайдено серед запущених")
+            print("   💡 Запустіть базу командою: docker-compose up -d")
+    else:
+        print("❌ Docker не запущено")
+        status.notes = "Запустіть Docker Desktop та повторіть перевірку."
 
-docker_ok = check_docker()
+    return status
+
+
+env_status = check_docker(EnvironmentStatus())
 
 
 # %% [markdown]
 #  ### Перевірка Підключення до PostgreSQL
 
 # %%
-import psycopg2
-from psycopg2.extras import RealDictCursor
+def test_db_connection(config: DatabaseConfig) -> bool:
+    """Пробує підключитись до PostgreSQL та повертає статус."""
 
-def test_db_connection():
-    """Тест підключення до бази даних"""
     try:
-        conn = psycopg2.connect(
-            host="localhost",
-            port=5432,
-            database="learning_db",
-            user="admin",
-            password="admin123"
-        )
+        with get_cursor(config) as cursor:
+            cursor.execute("SELECT version();")
+            version = cursor.fetchone()[0]
 
-        cursor = conn.cursor()
-        cursor.execute("SELECT version();")
-        version = cursor.fetchone()[0]
-
-        cursor.execute("SELECT COUNT(*) FROM customers;")
-        customer_count = cursor.fetchone()[0]
-
-        cursor.close()
-        conn.close()
+            cursor.execute("SELECT COUNT(*) FROM customers;")
+            customer_count = cursor.fetchone()[0]
 
         print("✅ Підключення до PostgreSQL успішне")
         print(f"📊 PostgreSQL версія: {version[:50]}...")
         print(f"👥 Клієнтів в БД: {customer_count}")
         return True
 
-    except Exception as e:
-        print(f"❌ Помилка підключення: {e}")
-        print("💡 Переконайтесь що PostgreSQL запущено: docker-compose up -d")
+    except Exception as exc:
+        print(f"❌ Помилка підключення: {exc}")
+        print("💡 Переконайтесь, що база запущена (docker-compose up -d)")
         return False
 
-if docker_ok:
-    db_ok = test_db_connection()
+
+db_config = DatabaseConfig()
+db_params = db_config.as_dict()
+
+if env_status.postgres_running:
+    db_ok = test_db_connection(db_config)
+elif env_status.docker_running:
+    print("⚠️ Пропускаємо перевірку БД (контейнер postgres не знайдено)")
+    db_ok = False
 else:
     print("⚠️ Пропускаємо перевірку БД (Docker не запущено)")
     db_ok = False
+
+
+# %% [markdown]
+#  ### ✅ Чекліст перед стартом модулів
+#
+#
+#  1. **Середовище**: Docker + docker-compose працюють без помилок.
+#  2. **База даних**: контейнер `postgres` у статусі `running`, тестовий запит `SELECT 1` проходить.
+#  3. **Secrets**: файл `.env` (якщо використовується) збережений поруч із проєктом, містить креденшали.
+#  4. **Python**: активоване віртуальне середовище, встановлено залежності з `requirements.txt`.
+#  5. **Jupyter**: ноутбук відкрито у VS Code або браузері, kernel має доступ до залежностей.
+#
+#  Якщо якийсь пункт не виконано — повертайтесь до секції вище та відновіть середовище.
 
 
 # %% [markdown]
@@ -242,16 +288,26 @@ else:
 
 # %% [markdown]
 #  ### 1.1 Event Loop та async/await - Основи
-# 
-# 
-# 
+#
+#
+#
 #  **Event Loop** - це серце асинхронного програмування в Python. Він:
-# 
+#
 #  - Керує виконанням асинхронних задач
-# 
+#
 #  - Переключається між задачами коли вони очікують (I/O операції)
-# 
+#
 #  - Дозволяє паралелізм без створення потоків
+#
+#  🔄 **Сучасні можливості (Python 3.11+)**
+#
+#  - [`asyncio.TaskGroup`](https://docs.python.org/3/library/asyncio-task.html#task-groups) забезпечує структуровану
+#    конкуренцію та автоматичний контроль помилок.
+#  - `asyncio.run()` робить запуск подій єдиним рядком коду (ми використовуємо його у скриптових прикладах).
+#  - `ExceptionGroup` дозволяє обробляти кілька помилок одночасно під час паралельних викликів.
+#
+#  Важливо пам'ятати, що Jupyter підтримує `await` напряму, тому в навчальних прикладах ми можемо викликати
+#  асинхронні функції без додаткових обгорток.
 
 # %%
 # Простий приклад: sync vs async
@@ -317,7 +373,7 @@ print(f"🚀 Прискорення: {sync_total/async_total:.1f}x")
 import aiohttp
 import requests
 
-async def fetch_url_async(session: aiohttp.ClientSession, url: str) -> tuple:
+async def fetch_url_async(session: aiohttp.ClientSession, url: str) -> Tuple[str, int, float, Optional[str]]:
     """Асинхронне завантаження URL"""
     try:
         start = time.time()
@@ -328,7 +384,7 @@ async def fetch_url_async(session: aiohttp.ClientSession, url: str) -> tuple:
     except Exception as e:
         return url, 0, 0, str(e)
 
-def fetch_url_sync(url: str) -> tuple:
+def fetch_url_sync(url: str) -> Tuple[str, int, float, Optional[str]]:
     """Синхронне завантаження URL"""
     try:
         start = time.time()
@@ -469,50 +525,39 @@ print(f"🚀 Прискорення: {sync_time/async_time:.1f}x")
 # %%
 # Підключення до БД та огляд структури
 if db_ok:
-    conn = psycopg2.connect(
-        host="localhost",
-        database="learning_db",
-        user="admin",
-        password="admin123"
-    )
-    cursor = conn.cursor()
+    with get_db_connection(db_config) as conn:
+        with conn.cursor() as cursor:
+            print_section("СТРУКТУРА БАЗИ ДАНИХ")
 
-    print("=" * 80)
-    print("СТРУКТУРА БАЗИ ДАНИХ")
-    print("=" * 80)
+            cursor.execute(
+                """
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                AND table_type = 'BASE TABLE'
+                ORDER BY table_name;
+                """
+            )
+            tables = cursor.fetchall()
 
-    # Отримуємо список таблиць
-    cursor.execute("""
-        SELECT table_name
-        FROM information_schema.tables
-        WHERE table_schema = 'public'
-        AND table_type = 'BASE TABLE'
-        ORDER BY table_name;
-    """)
+            for (table_name,) in tables:
+                cursor.execute(f"SELECT COUNT(*) FROM {table_name};")
+                count = cursor.fetchone()[0]
 
-    tables = cursor.fetchall()
+                cursor.execute(
+                    f"""
+                    SELECT column_name, data_type
+                    FROM information_schema.columns
+                    WHERE table_name = '{table_name}'
+                    ORDER BY ordinal_position
+                    LIMIT 5;
+                    """
+                )
+                columns = cursor.fetchall()
 
-    for (table_name,) in tables:
-        # Кількість записів
-        cursor.execute(f"SELECT COUNT(*) FROM {table_name};")
-        count = cursor.fetchone()[0]
-
-        # Колонки
-        cursor.execute(f"""
-            SELECT column_name, data_type
-            FROM information_schema.columns
-            WHERE table_name = '{table_name}'
-            ORDER BY ordinal_position
-            LIMIT 5;
-        """)
-        columns = cursor.fetchall()
-
-        print(f"\n📋 {table_name.upper()}")
-        print(f"   Записів: {count:,}")
-        print(f"   Колонки: {', '.join([col[0] for col in columns])}")
-
-    cursor.close()
-    conn.close()
+                print(f"\n📋 {table_name.upper()}")
+                print(f"   Записів: {count:,}")
+                print(f"   Колонки: {', '.join([col[0] for col in columns])}")
 else:
     print("⚠️ База даних недоступна, пропускаємо огляд структури")
 
@@ -526,12 +571,7 @@ else:
 
 # %%
 if db_ok:
-    conn = psycopg2.connect(
-        host="localhost",
-        database="learning_db",
-        user="admin",
-        password="admin123"
-    )
+    conn = psycopg2.connect(**db_params)
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     print("=" * 80)
@@ -573,12 +613,7 @@ if db_ok:
 
 # %%
 if db_ok:
-    conn = psycopg2.connect(
-        host="localhost",
-        database="learning_db",
-        user="admin",
-        password="admin123"
-    )
+    conn = psycopg2.connect(**db_params)
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     print("=" * 80)
@@ -622,12 +657,7 @@ if db_ok:
 
 # %%
 if db_ok:
-    conn = psycopg2.connect(
-        host="localhost",
-        database="learning_db",
-        user="admin",
-        password="admin123"
-    )
+    conn = psycopg2.connect(**db_params)
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     print("=" * 80)
@@ -739,17 +769,12 @@ if db_ok:
     import psycopg2
     from psycopg2.extras import RealDictCursor
 
-    @contextmanager
-    def get_db_connection():
-        """Context manager для безпечної роботи з БД"""
-        conn = None
-        try:
-            conn = psycopg2.connect(
-                host="localhost",
-                database="learning_db",
-                user="admin",
-                password="admin123"
-            )
+        @contextmanager
+        def get_db_connection():
+            """Context manager для безпечної роботи з БД"""
+            conn = None
+            try:
+                conn = psycopg2.connect(**db_params)
             yield conn
             conn.commit()
         except Exception as e:
@@ -973,12 +998,7 @@ if db_ok:
     print("PANDAS + POSTGRESQL")
     print("=" * 80)
 
-    conn = psycopg2.connect(
-        host="localhost",
-        database="learning_db",
-        user="admin",
-        password="admin123"
-    )
+    conn = psycopg2.connect(**db_params)
 
     # Завантаження даних в DataFrame
     query = """
@@ -2263,12 +2283,7 @@ if db_ok:
     LIMIT 20;
     """
 
-    conn = psycopg2.connect(
-        host="localhost",
-        database="learning_db",
-        user="admin",
-        password="admin123"
-    )
+    conn = psycopg2.connect(**db_params)
     cohort_df = pd.read_sql_query(cohort_query, conn)
     conn.close()
 
@@ -2327,12 +2342,7 @@ if db_ok:
     """
 
 
-    conn = psycopg2.connect(
-        host="localhost",
-        database="learning_db",
-        user="admin",
-        password="admin123"
-    )
+    conn = psycopg2.connect(**db_params)
 
     funnel_df = pd.read_sql_query(funnel_query, conn)
     conn.close()
@@ -2417,12 +2427,7 @@ if db_ok:
     """
 
 
-    conn = psycopg2.connect(
-        host="localhost",
-        database="learning_db",
-        user="admin",
-        password="admin123"
-    )
+    conn = psycopg2.connect(**db_params)
 
     ts_df = pd.read_sql_query(timeseries_query, conn)
     conn.close()
