@@ -1,0 +1,33 @@
+# Асинхронне програмування
+aiohttp==3.9.1
+asyncio==3.4.3
+
+# Робота з PostgreSQL
+psycopg2-binary==2.9.9
+
+# Jupyter для аналізу даних
+jupyter==1.0.0
+jupyterlab==4.0.9
+jupytext==1.16.0
+ipykernel==6.27.1
+
+# Аналіз даних
+pandas==2.1.4
+numpy==1.26.2
+
+# Візуалізація (опціонально)
+matplotlib==3.8.2
+seaborn==0.13.0
+
+# Корисні утиліти
+python-dotenv==1.0.0
+colorama==0.4.6
+
+# WebSockets (опціонально)
+websockets==12.0
+
+# Redis (для повного профілю)
+redis==5.0.1
+
+# HTTP запити (для порівняння з async)
+requests==2.31.0
