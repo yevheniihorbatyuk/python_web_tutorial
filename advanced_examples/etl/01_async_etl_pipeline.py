@@ -16,7 +16,6 @@ Use cases:
 
 import asyncio
 import aiohttp
-import psycopg2
 from psycopg2.extras import execute_batch
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
