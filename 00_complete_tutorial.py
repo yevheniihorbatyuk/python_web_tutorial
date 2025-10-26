@@ -129,12 +129,13 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from contextlib import contextmanager
 from typing import List, Dict, Any, Optional, Tuple
 import warnings
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
+
+from utils.db import DatabaseConfig, get_cursor, get_db_connection
 
 # Додаємо поточну директорію до шляху Python (для локальних модулів)
 sys.path.insert(0, os.path.abspath('.'))
@@ -153,47 +154,6 @@ class EnvironmentStatus:
     docker_running: bool = False
     postgres_running: bool = False
     notes: Optional[str] = None
-
-
-@dataclass(slots=True)
-class DatabaseConfig:
-    """Описує параметри підключення до навчальної бази PostgreSQL."""
-
-    host: str = "localhost"
-    port: int = 5432
-    database: str = "learning_db"
-    user: str = "admin"
-    password: str = "admin123"
-
-    def as_dict(self) -> Dict[str, Any]:
-        return {
-            "host": self.host,
-            "port": self.port,
-            "database": self.database,
-            "user": self.user,
-            "password": self.password,
-        }
-
-
-@contextmanager
-def get_connection(config: DatabaseConfig):
-    """Context manager для підключення до PostgreSQL."""
-
-    with psycopg2.connect(**config.as_dict()) as conn:
-        yield conn
-
-
-@contextmanager
-def get_cursor(
-    config: DatabaseConfig,
-    *,
-    dict_cursor: bool = False,
-):
-    """Надає курсор з автоматичним закриттям підключення."""
-
-    with get_connection(config) as conn:
-        with conn.cursor(cursor_factory=RealDictCursor if dict_cursor else None) as cursor:
-            yield cursor
 
 
 def print_section(title: str, symbol: str = "=") -> None:
@@ -279,6 +239,7 @@ def test_db_connection(config: DatabaseConfig) -> bool:
 
 
 db_config = DatabaseConfig()
+db_params = db_config.as_dict()
 
 if env_status.postgres_running:
     db_ok = test_db_connection(db_config)
@@ -564,7 +525,7 @@ print(f"🚀 Прискорення: {sync_time/async_time:.1f}x")
 # %%
 # Підключення до БД та огляд структури
 if db_ok:
-    with get_connection(db_config) as conn:
+    with get_db_connection(db_config) as conn:
         with conn.cursor() as cursor:
             print_section("СТРУКТУРА БАЗИ ДАНИХ")
 
@@ -610,12 +571,7 @@ else:
 
 # %%
 if db_ok:
-    conn = psycopg2.connect(
-        host="localhost",
-        database="learning_db",
-        user="admin",
-        password="admin123"
-    )
+    conn = psycopg2.connect(**db_params)
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     print("=" * 80)
@@ -657,12 +613,7 @@ if db_ok:
 
 # %%
 if db_ok:
-    conn = psycopg2.connect(
-        host="localhost",
-        database="learning_db",
-        user="admin",
-        password="admin123"
-    )
+    conn = psycopg2.connect(**db_params)
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     print("=" * 80)
@@ -706,12 +657,7 @@ if db_ok:
 
 # %%
 if db_ok:
-    conn = psycopg2.connect(
-        host="localhost",
-        database="learning_db",
-        user="admin",
-        password="admin123"
-    )
+    conn = psycopg2.connect(**db_params)
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     print("=" * 80)
@@ -823,17 +769,12 @@ if db_ok:
     import psycopg2
     from psycopg2.extras import RealDictCursor
 
-    @contextmanager
-    def get_db_connection():
-        """Context manager для безпечної роботи з БД"""
-        conn = None
-        try:
-            conn = psycopg2.connect(
-                host="localhost",
-                database="learning_db",
-                user="admin",
-                password="admin123"
-            )
+        @contextmanager
+        def get_db_connection():
+            """Context manager для безпечної роботи з БД"""
+            conn = None
+            try:
+                conn = psycopg2.connect(**db_params)
             yield conn
             conn.commit()
         except Exception as e:
@@ -1057,12 +998,7 @@ if db_ok:
     print("PANDAS + POSTGRESQL")
     print("=" * 80)
 
-    conn = psycopg2.connect(
-        host="localhost",
-        database="learning_db",
-        user="admin",
-        password="admin123"
-    )
+    conn = psycopg2.connect(**db_params)
 
     # Завантаження даних в DataFrame
     query = """
@@ -2347,12 +2283,7 @@ if db_ok:
     LIMIT 20;
     """
 
-    conn = psycopg2.connect(
-        host="localhost",
-        database="learning_db",
-        user="admin",
-        password="admin123"
-    )
+    conn = psycopg2.connect(**db_params)
     cohort_df = pd.read_sql_query(cohort_query, conn)
     conn.close()
 
@@ -2411,12 +2342,7 @@ if db_ok:
     """
 
 
-    conn = psycopg2.connect(
-        host="localhost",
-        database="learning_db",
-        user="admin",
-        password="admin123"
-    )
+    conn = psycopg2.connect(**db_params)
 
     funnel_df = pd.read_sql_query(funnel_query, conn)
     conn.close()
@@ -2501,12 +2427,7 @@ if db_ok:
     """
 
 
-    conn = psycopg2.connect(
-        host="localhost",
-        database="learning_db",
-        user="admin",
-        password="admin123"
-    )
+    conn = psycopg2.connect(**db_params)
 
     ts_df = pd.read_sql_query(timeseries_query, conn)
     conn.close()

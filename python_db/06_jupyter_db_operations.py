@@ -33,9 +33,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
 import numpy as np
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from datetime import datetime
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -50,17 +47,11 @@ except ImportError:
     print("⚠️  matplotlib не встановлено. Візуалізація недоступна.")
 
 # %%
-# Конфігурація підключення
-DB_CONFIG = {
-    'host': 'localhost',
-    'port': '5432',
-    'database': 'learning_db',
-    'user': 'admin',
-    'password': 'admin123'
-}
+from utils.db import DatabaseConfig, get_connection
 
-# Створити підключення
-conn = psycopg2.connect(**DB_CONFIG)
+# Конфігурація підключення з єдиного джерела правди
+db_config = DatabaseConfig()
+conn = get_connection(db_config)
 print("✅ Підключення до PostgreSQL успішне!")
 
 # %% [markdown]
