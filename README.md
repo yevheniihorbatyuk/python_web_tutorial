@@ -9,17 +9,53 @@
 ## 🚀 Швидкий Старт
 
 ```bash
-# 1. Запустити PostgreSQL
+# 1. Створити віртуальне середовище та встановити пакет
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -e .[dev]
+
+# 2. Запустити інфраструктуру PostgreSQL
 docker-compose up -d
 
-# 2. Перевірити підключення
-docker-compose exec postgres psql -U admin -d learning_db -c "SELECT COUNT(*) FROM customers;"
+# 3. Підготувати навчальні дані
+python -m python_web_tutorial.tools.bootstrap_data
 
-# 3. Запустити приклади
-python async_examples/01_async_basics.py
+# 4. Запустити перший приклад
+python python_web_tutorial/async_examples/01_async_basics.py
 ```
 
 **Детальна інструкція**: [docs/START_HERE.md](docs/START_HERE.md)
+
+---
+
+## 🛠️ Підготовка середовища
+
+1. **Сконфігуруйте змінні середовища**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Підніміть інфраструктуру**
+   ```bash
+   docker-compose up -d
+   docker-compose ps
+   ```
+
+3. **Ініціалізуйте базу даних** за допомогою CLI:
+   ```bash
+   python -m python_web_tutorial.tools.bootstrap_data
+   # Перевірити стан таблиць без змін
+   python -m python_web_tutorial.tools.bootstrap_data --check
+   # Перезавантажити демо-дані
+   python -m python_web_tutorial.tools.bootstrap_data --force
+   ```
+
+4. **Переконайтеся, що PostgreSQL доступний**
+   ```bash
+   docker-compose exec postgres psql -U admin -d learning_db -c "SELECT COUNT(*) FROM customers;"
+   ```
+
+Після цих кроків усі приклади можна запускати як звичайні скрипти, наприклад `python python_web_tutorial/async_examples/01_async_basics.py`.
 
 ---
 
@@ -84,7 +120,7 @@ python async_examples/01_async_basics.py
 ## 📁 Структура Проєкту
 
 ```
-python_web/
+python_web_tutorial/
 ├── 📚 docs/                           # Вся документація
 │   ├── README.md                      # План базового модуля
 │   ├── ADVANCED_README.md             # Advanced модулі
@@ -130,13 +166,13 @@ python_web/
 ### Крок 1: Базовий Модуль (обов'язково)
 ```bash
 # 1. Event Loop
-python async_examples/01_async_basics.py
+python python_web_tutorial/async_examples/01_async_basics.py
 
 # 2. HTTP запити
-python async_examples/02_async_http_client.py
+python python_web_tutorial/async_examples/02_async_http_client.py
 
 # 3. Python + DB
-python python_db/05_db_connection.py
+python python_web_tutorial/python_db/05_db_connection.py
 
 # 4. SQL приклади
 psql -U admin -d learning_db -f sql_examples/04_sql_examples.sql
@@ -145,13 +181,13 @@ psql -U admin -d learning_db -f sql_examples/04_sql_examples.sql
 ### Крок 2: Advanced Модулі (опціонально)
 ```bash
 # 1. Production ETL
-python advanced_examples/etl/01_async_etl_pipeline.py
+python python_web_tutorial/advanced_examples/etl/01_async_etl_pipeline.py
 
 # 2. Architectural Patterns
-python advanced_examples/patterns/02_repository_pattern.py
+python python_web_tutorial/advanced_examples/patterns/02_repository_pattern.py
 
 # 3. Feature Store
-python advanced_examples/ml_pipeline/03_feature_store.py
+python python_web_tutorial/advanced_examples/ml_pipeline/03_feature_store.py
 
 # 4. Advanced SQL
 psql -U admin -d learning_db -f sql_examples/05_advanced_analytics.sql
@@ -213,21 +249,22 @@ psql -U admin -d learning_db -f sql_examples/05_advanced_analytics.sql
 ```bash
 # 1. Clone або download проєкт
 git clone <repository-url>
-cd python_web
+cd python_web_tutorial
 
 # 2. Створити .env
 cp .env.example .env
 
-# 3. Запустити PostgreSQL
+# 3. Налаштувати Python середовище
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -e .[dev]
+
+# 4. Запустити PostgreSQL
 docker-compose up -d
 
-# 4. Встановити Python залежності
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-pip install -r requirements.txt
-
-# 5. Перевірити
-python async_examples/01_async_basics.py
+# 5. Підготувати дані та виконати smoke-test
+python -m python_web_tutorial.tools.bootstrap_data
+python python_web_tutorial/async_examples/01_async_basics.py
 ```
 
 ---

@@ -6,12 +6,18 @@
 
 ## ⚡ Швидкий Старт (5 хвилин)
 
-### Крок 1: Запустити PostgreSQL
+### Крок 1: Підготувати середовище
 
 ```bash
-cd python_web
+cd python_web_tutorial
 cp .env.example .env
+
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -e .[dev]
+
 docker-compose up -d
+python -m python_web_tutorial.tools.bootstrap_data
 ```
 
 ### Крок 2: Перевірити підключення
@@ -25,30 +31,20 @@ SELECT COUNT(*) FROM customers;  # Перевірити дані
 \q                               # Вийти
 ```
 
-### Крок 3: Встановити Python залежності
-
-```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# venv\Scripts\activate   # Windows
-
-pip install -r requirements.txt
-```
-
-### Крок 4: Запустити приклади
+### Крок 3: Запустити приклади
 
 ```bash
 # Async основи
-python async_examples/01_async_basics.py
+python python_web_tutorial/async_examples/01_async_basics.py
 
 # HTTP запити
-python async_examples/02_async_http_client.py
+python python_web_tutorial/async_examples/02_async_http_client.py
 
 # Робота з БД
-python python_db/05_db_connection.py
+python python_web_tutorial/python_db/05_db_connection.py
 
 # Jupyter (опціонально)
-jupyter notebook python_db/06_jupyter_db_operations.py
+jupyter notebook python_web_tutorial/python_db/06_jupyter_db_operations.py
 ```
 
 ---
@@ -105,7 +101,7 @@ jupyter notebook python_db/06_jupyter_db_operations.py
 ## 📁 Структура Проєкту
 
 ```
-python_web/
+python_web_tutorial/
 ├── 📘 Документація
 │   ├── README.md           - Основний опис
 │   ├── START_HERE.md       - Цей файл!

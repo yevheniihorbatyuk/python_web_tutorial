@@ -22,13 +22,10 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, asdict
 import json
 from enum import Enum
-import sys
-import os
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from colorama import Fore, init
-from utils.helpers import get_db_connection
+
+from python_web_tutorial.utils.helpers import get_db_connection
 
 init(autoreset=True)
 

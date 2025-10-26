@@ -10,18 +10,12 @@
 5. Batch операції
 """
 
-import sys
-import os
-
-# Додати шлях до utils
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from colorama import Fore, init
 from typing import Any, Dict
 
-from utils.helpers import DatabaseConfig, get_db_connection, execute_query, timing
+from python_web_tutorial.utils import DatabaseConfig, execute_query, get_db_connection, timing
 
 init(autoreset=True)
 

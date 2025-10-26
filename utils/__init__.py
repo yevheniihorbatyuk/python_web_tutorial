@@ -15,8 +15,6 @@ from .db import (
     test_connection,
     timing,
 )
-from .helpers import with_connection
-
 __all__ = [
     "ConnectionPool",
     "DatabaseConfig",
@@ -31,5 +29,4 @@ __all__ = [
     "table_exists",
     "test_connection",
     "timing",
-    "with_connection",
 ]

@@ -25,12 +25,6 @@
 # ## 1. Підготовка та Підключення
 
 # %%
-import sys
-import os
-
-# Додати шлях до utils
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 import pandas as pd
 import numpy as np
 import warnings
@@ -47,7 +41,7 @@ except ImportError:
     print("⚠️  matplotlib не встановлено. Візуалізація недоступна.")
 
 # %%
-from utils.db import DatabaseConfig, get_connection
+from python_web_tutorial.utils.db import DatabaseConfig, get_connection
 
 # Конфігурація підключення з єдиного джерела правди
 db_config = DatabaseConfig()
