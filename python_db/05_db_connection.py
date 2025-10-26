@@ -174,6 +174,7 @@ def demo_sql_injection():
     print(f"{Fore.CYAN}{'=' * 70}\n")
 
     # ❌ НЕБЕЗПЕЧНО - НЕ РОБІТЬ ТАК!
+    user_input = '{user_input}'
     print(f"{Fore.RED}❌ НЕБЕЗПЕЧНИЙ КОД (НЕ використовувати):")
     print(f"{Fore.YELLOW}query = f\"SELECT * FROM users WHERE email = '{user_input}'\"")
     print(f"{Fore.RED}Це дозволяє SQL injection атаки!\n")

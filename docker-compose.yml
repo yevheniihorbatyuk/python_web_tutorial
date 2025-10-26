@@ -41,7 +41,7 @@ services:
 
   # Redis - тільки для повного профілю
   redis:
-    image: redis:7-alpine
+    image: redis:alpine
     container_name: learning_redis
     profiles: ["full"]
     ports:

@@ -578,6 +578,6 @@ psql -U admin -d learning_db -f sql_examples/05_advanced_analytics.sql
 
 ---
 
-**Створено для Senior Data Scientists & Data Engineers** 🚀
+**Доповнено для Data Scientists & Data Engineers** 🚀
 
-*Balance між theory і practice, sophistication і simplicity*
+*Balance between theory and practice, sophistication and simplicity*
