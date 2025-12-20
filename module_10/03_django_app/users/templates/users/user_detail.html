@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ user.full_name }} - User Management{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-user"></i> {{ user.full_name }}</h1>
+            <div>
+                <a href="{% url 'users:user-update' pk=user.id %}" class="btn btn-warning">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+                <a href="{% url 'users:user-delete' pk=user.id %}" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> Delete
+                </a>
+            </div>
+        </div>
+
+        <!-- User Card -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <!-- Personal Information -->
+                <div class="mb-4">
+                    <h5 class="card-title"><i class="fas fa-id-card"></i> Personal Information</h5>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="text-muted mb-1">First Name</p>
+                            <p class="fs-5"><strong>{{ user.first_name }}</strong></p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="text-muted mb-1">Last Name</p>
+                            <p class="fs-5"><strong>{{ user.last_name }}</strong></p>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="text-muted mb-1">Email</p>
+                            <p class="fs-5">
+                                <a href="mailto:{{ user.email }}">{{ user.email }}</a>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="text-muted mb-1">Phone</p>
+                            <p class="fs-5">
+                                {% if user.phone %}
+                                    <a href="tel:{{ user.phone }}">{{ user.phone }}</a>
+                                {% else %}
+                                    <span class="text-muted">Not provided</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Location Information -->
+                <div class="mb-4">
+                    <h5 class="card-title"><i class="fas fa-map-marker-alt"></i> Location</h5>
+                    <hr>
+                    {% if user.city %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="text-muted mb-1">City</p>
+                                <p class="fs-5">
+                                    <a href="{% url 'users:city-detail' pk=user.city.id %}">
+                                        {{ user.city.name }}
+                                    </a>
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="text-muted mb-1">Country</p>
+                                <p class="fs-5">
+                                    <a href="{% url 'users:country-detail' pk=user.city.country.id %}">
+                                        {{ user.city.country.name }}
+                                    </a>
+                                </p>
+                            </div>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">
+                            <i class="fas fa-info-circle"></i> Location not specified
+                        </p>
+                    {% endif %}
+                </div>
+
+                <!-- Biography -->
+                {% if user.bio %}
+                    <div class="mb-4">
+                        <h5 class="card-title"><i class="fas fa-align-left"></i> Biography</h5>
+                        <hr>
+                        <p>{{ user.bio|linebreaks }}</p>
+                    </div>
+                {% endif %}
+
+                <!-- Status & Dates -->
+                <div>
+                    <h5 class="card-title"><i class="fas fa-info-circle"></i> Status & Dates</h5>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="text-muted mb-1">Status</p>
+                            <p class="fs-5">
+                                {% if user.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inactive</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="text-muted mb-1">Created</p>
+                            <p class="fs-5">{{ user.created_at|date:"d M Y H:i" }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="text-muted mb-1">Last Updated</p>
+                            <p class="fs-5">{{ user.updated_at|date:"d M Y H:i" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="text-center">
+            <a href="{% url 'users:user-list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Users
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

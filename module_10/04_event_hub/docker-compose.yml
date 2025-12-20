@@ -1,0 +1,128 @@
+version: '3.9'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: eventhub_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-eventhub}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-eventhub_pass}
+      POSTGRES_DB: ${DATABASE_NAME:-eventhub}
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-eventhub}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - eventhub_network
+
+  # Redis Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: eventhub_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - eventhub_network
+
+  # Django Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eventhub_app
+    restart: unless-stopped
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DATABASE_URL: postgres://${DATABASE_USER:-eventhub}:${DATABASE_PASSWORD:-eventhub_pass}@postgres:5432/${DATABASE_NAME:-eventhub}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+      - python_cache:/root/.cache
+    networks:
+      - eventhub_network
+
+  # Celery Worker
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eventhub_celery
+    restart: unless-stopped
+    command: celery -A eventhub_config worker --loglevel=info
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - postgres
+      - redis
+      - app
+    volumes:
+      - ./:/app
+      - python_cache:/root/.cache
+    networks:
+      - eventhub_network
+
+  # Celery Beat (Scheduler)
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eventhub_celery_beat
+    restart: unless-stopped
+    command: celery -A eventhub_config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - postgres
+      - redis
+      - app
+    volumes:
+      - ./:/app
+      - python_cache:/root/.cache
+    networks:
+      - eventhub_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  python_cache:
+
+networks:
+  eventhub_network:
+    driver: bridge

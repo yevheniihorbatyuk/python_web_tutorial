@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+
+{% block title %}Home - User Management{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <!-- Welcome Section -->
+        <div class="card mb-4 border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <h1 class="display-4 mb-3">
+                    <i class="fas fa-globe text-primary"></i> User Management System
+                </h1>
+                <p class="lead text-muted mb-4">
+                    A comprehensive Django application for managing countries, cities, and users
+                </p>
+                <a href="{% url 'users:user-list' %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-users"></i> Start Managing Users
+                </a>
+            </div>
+        </div>
+
+        <!-- Features -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card text-center h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <i class="fas fa-user fa-3x text-primary mb-3"></i>
+                        <h5 class="card-title">User Management</h5>
+                        <p class="card-text text-muted">Create, edit, and manage user profiles with detailed information</p>
+                        <a href="{% url 'users:user-list' %}" class="btn btn-sm btn-outline-primary">
+                            View Users <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card text-center h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <i class="fas fa-building fa-3x text-success mb-3"></i>
+                        <h5 class="card-title">City Management</h5>
+                        <p class="card-text text-muted">Organize cities by country with population and historical data</p>
+                        <a href="{% url 'users:city-list' %}" class="btn btn-sm btn-outline-success">
+                            View Cities <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card text-center h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <i class="fas fa-map fa-3x text-danger mb-3"></i>
+                        <h5 class="card-title">Country Management</h5>
+                        <p class="card-text text-muted">Manage countries with geographic and demographic information</p>
+                        <a href="{% url 'users:country-list' %}" class="btn btn-sm btn-outline-danger">
+                            View Countries <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Quick Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <div class="stat-card">
+                            <div class="stat-number text-primary">0</div>
+                            <div class="stat-label">Users</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card">
+                            <div class="stat-number text-success">0</div>
+                            <div class="stat-label">Cities</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card">
+                            <div class="stat-number text-danger">0</div>
+                            <div class="stat-label">Countries</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- About Module -->
+        <div class="card mt-4 border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-info-circle"></i> About This Module</h5>
+                <p class="text-muted">
+                    This application is part of Module 10: Django & Web Scraping course. It demonstrates:
+                </p>
+                <ul class="text-muted">
+                    <li>Django models with relationships (ForeignKey, OneToOne, ManyToMany)</li>
+                    <li>CRUD operations using class-based views</li>
+                    <li>ModelForm validation and form rendering</li>
+                    <li>Bootstrap integration for responsive design</li>
+                    <li>Django admin customization</li>
+                    <li>Database relationships and querying</li>
+                </ul>
+                <a href="{% url 'users:user-list' %}" class="btn btn-primary mt-3">
+                    <i class="fas fa-play"></i> Start Exploring
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .stat-card {
+        padding: 20px;
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+        text-transform: uppercase;
+    }
+</style>
+{% endblock %}

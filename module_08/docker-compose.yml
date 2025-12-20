@@ -1,0 +1,166 @@
+version: '3.9'
+
+services:
+  # PostgreSQL (SQL database)
+  postgres:
+    image: postgres:16-alpine
+    container_name: module08_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-goit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-goit_password}
+      POSTGRES_DB: ${POSTGRES_DB:-goit_module08}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-goit}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - module08_network
+
+  # MongoDB (NoSQL document database)
+  mongo:
+    image: mongo:7
+    container_name: module08_mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-mongo_password}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-goit_module08}
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - module08_network
+
+  # Redis (In-memory cache & message broker)
+  redis:
+    image: redis:7-alpine
+    container_name: module08_redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_password}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - module08_network
+
+  # RabbitMQ (Message queue & event broker)
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: module08_rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - module08_network
+
+  # Postgres UI (pgAdmin)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: module08_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    depends_on:
+      - postgres
+    networks:
+      - module08_network
+
+  # Mongo Express (MongoDB UI)
+  mongo-express:
+    image: mongo-express:latest
+    container_name: module08_mongo_express
+    restart: unless-stopped
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_USER:-admin}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_PASSWORD:-mongo_password}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-mongo_password}@mongo:27017/
+      ME_CONFIG_BASICAUTH: "false"
+    ports:
+      - "${MONGO_EXPRESS_PORT:-8081}:8081"
+    depends_on:
+      - mongo
+    networks:
+      - module08_network
+
+  # Application (Python)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: module08_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      MONGO_HOST: mongo
+      MONGO_PORT: 27017
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+      - python_cache:/root/.cache
+    working_dir: /app
+    # Run interactive shell (override with specific command)
+    command: /bin/bash -c "pip install -r requirements.txt && bash"
+    stdin_open: true
+    tty: true
+    networks:
+      - module08_network
+
+volumes:
+  postgres_data:
+  mongo_data:
+  mongo_config:
+  redis_data:
+  rabbitmq_data:
+  python_cache:
+
+networks:
+  module08_network:
+    driver: bridge
