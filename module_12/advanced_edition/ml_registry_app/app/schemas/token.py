@@ -27,3 +27,10 @@ class OAuth2Callback(BaseModel):
 
     code: str
     redirect_uri: str
+
+
+class OAuth2AuthURL(BaseModel):
+    """OAuth2 authorization URL response."""
+
+    auth_url: str
+    description: str = "Redirect the user to this URL to authenticate with the provider"

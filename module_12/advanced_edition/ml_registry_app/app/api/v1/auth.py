@@ -12,7 +12,7 @@ from sqlalchemy import select
 from app.database import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
-from app.schemas.token import Token, OAuth2Callback
+from app.schemas.token import Token, OAuth2Callback, OAuth2AuthURL
 from app.auth.password import verify_password, get_password_hash
 from app.auth.jwt import create_access_token, create_refresh_token, decode_token
 from app.auth.dependencies import get_current_user
@@ -178,6 +178,42 @@ async def get_me(
         Current user information
     """
     return current_user
+
+
+@router.get("/oauth2/google/auth-url", response_model=OAuth2AuthURL)
+async def google_oauth2_auth_url(redirect_uri: str) -> OAuth2AuthURL:
+    """
+    Get Google OAuth2 authorization URL.
+
+    This endpoint returns the URL where the user should be redirected
+    to authenticate with Google.
+
+    Args:
+        redirect_uri: The URI where Google should redirect after authentication
+
+    Returns:
+        OAuth2AuthURL with the authorization URL
+    """
+    auth_url = GoogleOAuth2.get_auth_url(redirect_uri=redirect_uri)
+    return OAuth2AuthURL(auth_url=auth_url)
+
+
+@router.get("/oauth2/github/auth-url", response_model=OAuth2AuthURL)
+async def github_oauth2_auth_url(redirect_uri: str) -> OAuth2AuthURL:
+    """
+    Get GitHub OAuth2 authorization URL.
+
+    This endpoint returns the URL where the user should be redirected
+    to authenticate with GitHub.
+
+    Args:
+        redirect_uri: The URI where GitHub should redirect after authentication
+
+    Returns:
+        OAuth2AuthURL with the authorization URL
+    """
+    auth_url = GitHubOAuth2.get_auth_url(redirect_uri=redirect_uri)
+    return OAuth2AuthURL(auth_url=auth_url)
 
 
 @router.post("/oauth2/google/callback", response_model=Token)
