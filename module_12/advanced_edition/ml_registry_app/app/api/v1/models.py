@@ -2,6 +2,12 @@
 ML Models API endpoints.
 
 Provides CRUD operations for ML models with filtering and pagination.
+
+RBAC (Role-Based Access Control):
+    - Users can create and manage their own models
+    - Admins and reviewers can view all models
+    - Only admins can delete any model
+    - The require_roles() decorator enforces role requirements
 """
 
 from typing import Annotated, List, Optional
@@ -13,7 +19,7 @@ from app.database import get_db
 from app.models.user import User, UserRole
 from app.models.ml_model import MLModel, ModelLifecycle, MLFramework
 from app.schemas.ml_model import MLModelCreate, MLModelUpdate, MLModelResponse
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, require_roles
 
 router = APIRouter()
 
@@ -28,7 +34,11 @@ async def list_models(
     limit: int = Query(100, ge=1, le=1000)
 ) -> List[MLModel]:
     """
-    List ML models with filtering and pagination.
+    List ML models with filtering, pagination, and role-based visibility.
+
+    Visibility rules (RBAC):
+        - Admins and reviewers: See all models
+        - Regular users: See only their own models
 
     Args:
         db: Database session
@@ -39,7 +49,7 @@ async def list_models(
         limit: Maximum number of records to return
 
     Returns:
-        List of ML models matching filters
+        List of ML models matching filters and visibility rules
     """
     query = select(MLModel)
 
@@ -53,12 +63,12 @@ async def list_models(
     if filters:
         query = query.where(and_(*filters))
 
-    # RBAC: regular users can only see their own models
-    if not current_user.is_superuser and current_user.role not in {
-        UserRole.admin.value,
-        UserRole.reviewer.value
-    }:
-        query = query.where(MLModel.owner_id == current_user.id)
+    # RBAC: Apply visibility rules based on user role
+    # Superusers see all models; regular users see only their own
+    if not current_user.is_superuser:
+        if current_user.role not in {UserRole.admin.value, UserRole.reviewer.value}:
+            # Regular users can only see their own models
+            query = query.where(MLModel.owner_id == current_user.id)
 
     # Pagination
     query = query.offset(skip).limit(limit)
@@ -107,6 +117,11 @@ async def get_model(
     """
     Get a specific ML model by ID.
 
+    Visibility rules (RBAC):
+        - Admins and reviewers: Can see any model
+        - Regular users: Can only see their own models or public models
+        - Superusers: Can see any model
+
     Args:
         model_id: ID of the model to retrieve
         db: Database session
@@ -116,7 +131,7 @@ async def get_model(
         ML model with specified ID
 
     Raises:
-        HTTPException: If model not found
+        HTTPException: If model not found or user lacks view permissions
     """
     result = await db.execute(select(MLModel).where(MLModel.id == model_id))
     model = result.scalar_one_or_none()
@@ -125,6 +140,20 @@ async def get_model(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Model not found"
+        )
+
+    # RBAC: Check if user is authorized to view this model
+    is_owner = model.owner_id == current_user.id
+    is_admin = current_user.role == UserRole.admin.value
+    is_reviewer = current_user.role == UserRole.reviewer.value
+    is_superuser = current_user.is_superuser
+
+    can_view = is_owner or is_admin or is_reviewer or is_superuser
+
+    if not can_view:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough privileges to view this model"
         )
 
     return model
@@ -139,6 +168,11 @@ async def update_model(
 ) -> MLModel:
     """
     Update an ML model.
+
+    Authorization rules (RBAC):
+        - Model owner can update their own model
+        - Admins can update any model
+        - Superusers can update any model
 
     Args:
         model_id: ID of the model to update
@@ -161,13 +195,15 @@ async def update_model(
             detail="Model not found"
         )
 
-    # Check ownership
-    if model.owner_id != current_user.id and not (
-        current_user.is_superuser or current_user.role == UserRole.admin.value
-    ):
+    # RBAC: Check if user is authorized to update this model
+    is_owner = model.owner_id == current_user.id
+    is_admin = current_user.role == UserRole.admin.value
+    is_superuser = current_user.is_superuser
+
+    if not (is_owner or is_admin or is_superuser):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough privileges"
+            detail="Not enough privileges to update this model"
         )
 
     # Update fields
@@ -189,6 +225,11 @@ async def delete_model(
     """
     Delete an ML model.
 
+    Authorization rules (RBAC):
+        - Model owner can delete their own model
+        - Admins can delete any model
+        - Superusers can delete any model
+
     Args:
         model_id: ID of the model to delete
         db: Database session
@@ -206,13 +247,15 @@ async def delete_model(
             detail="Model not found"
         )
 
-    # Check ownership
-    if model.owner_id != current_user.id and not (
-        current_user.is_superuser or current_user.role == UserRole.admin.value
-    ):
+    # RBAC: Check if user is authorized to delete this model
+    is_owner = model.owner_id == current_user.id
+    is_admin = current_user.role == UserRole.admin.value
+    is_superuser = current_user.is_superuser
+
+    if not (is_owner or is_admin or is_superuser):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough privileges"
+            detail="Not enough privileges to delete this model"
         )
 
     await db.delete(model)
@@ -228,6 +271,15 @@ async def update_model_lifecycle(
 ) -> MLModel:
     """
     Update model lifecycle stage.
+
+    The lifecycle stage tracks the model's progression through development
+    stages (development → staging → production → retired).
+
+    Authorization rules (RBAC):
+        - Model owner can change their own model's lifecycle
+        - Admins can change any model's lifecycle
+        - Superusers can change any model's lifecycle
+        - Reviewers have read-only access (can view but not modify)
 
     Args:
         model_id: ID of the model
@@ -250,13 +302,15 @@ async def update_model_lifecycle(
             detail="Model not found"
         )
 
-    # Check ownership
-    if model.owner_id != current_user.id and not (
-        current_user.is_superuser or current_user.role == UserRole.admin.value
-    ):
+    # RBAC: Check if user is authorized to modify this model's lifecycle
+    is_owner = model.owner_id == current_user.id
+    is_admin = current_user.role == UserRole.admin.value
+    is_superuser = current_user.is_superuser
+
+    if not (is_owner or is_admin or is_superuser):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough privileges"
+            detail="Not enough privileges to modify this model's lifecycle"
         )
 
     model.lifecycle = new_lifecycle
