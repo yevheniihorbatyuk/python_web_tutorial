@@ -1,0 +1,45 @@
+================================================================================
+MODULE 12: FASTAPI WEB DEVELOPMENT - STRUCTURE SUMMARY
+================================================================================
+
+BEGINNER EDITION
+  standalone_examples/
+    1_minimal_app.py
+    2_database_basics.py
+    3_auth_basics.py
+    4_test_examples.py
+
+  todo_app/ (complete CRUD app)
+
+INTERMEDIATE EDITION
+  blog_api/ (posts + comments + relationships)
+
+ADVANCED EDITION
+  async_patterns.py (reference)
+  ml_registry_app/ (production-style app)
+
+================================================================================
+DOCUMENTATION ENTRY POINTS
+================================================================================
+
+- README.md ......................... Module overview
+- docs/LEARNING_PATH.md ............. Choose your path
+- docs/QUICKSTART.md ................ Run apps quickly
+- docs/NOTEBOOK_GUIDE.md ............ Notebook usage
+- docs/STRUCTURE.md ................. Full module tree
+- docs/API_EXAMPLES.md .............. Request examples
+- docs/CHECKLIST.md ................. Progress tracking
+
+================================================================================
+LEARNING FLOW (RECOMMENDED)
+================================================================================
+
+1) docs/LEARNING_PATH.md
+2) docs/QUICKSTART.md
+3) beginner_edition/README.md
+4) beginner_edition/standalone_examples/
+5) beginner_edition/todo_app/
+6) intermediate_edition/blog_api/
+7) advanced_edition/ml_registry_app/
+
+================================================================================

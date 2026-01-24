@@ -216,3 +216,5 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+module_10/01_beginner_edition/data/news_demo.db
+module_12/MLModelRegistry.postman_collection.json
