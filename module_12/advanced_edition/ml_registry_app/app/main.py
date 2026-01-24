@@ -5,6 +5,7 @@ Main application setup with routes and middleware configuration.
 """
 
 from fastapi import FastAPI
+from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
@@ -23,6 +24,13 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         # Create tables (in production, use Alembic migrations)
         await conn.run_sync(Base.metadata.create_all)
+        # Ensure legacy databases have the role column expected by the User model.
+        await conn.execute(
+            text(
+                "ALTER TABLE users "
+                "ADD COLUMN IF NOT EXISTS role VARCHAR(50) NOT NULL DEFAULT 'user'"
+            )
+        )
 
     yield
 

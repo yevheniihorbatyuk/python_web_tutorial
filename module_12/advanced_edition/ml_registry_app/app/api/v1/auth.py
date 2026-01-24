@@ -5,7 +5,7 @@ Provides user registration, login, token refresh, and user info endpoints.
 """
 
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -71,8 +71,8 @@ async def register(
 
 @router.post("/login", response_model=Token)
 async def login(
-    username: str,
-    password: str,
+    username: Annotated[str, Form()],
+    password: Annotated[str, Form()],
     db: Annotated[AsyncSession, Depends(get_db)]
 ) -> Token:
     """

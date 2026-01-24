@@ -5,7 +5,7 @@ Used for request/response validation in API endpoints.
 """
 
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from app.models.ml_model import ModelLifecycle, MLFramework, TaskType
 
 
@@ -55,5 +55,7 @@ class MLModelResponse(MLModelBase):
     owner_id: int
     experiment_id: Optional[int]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,
+        protected_namespaces=(),
+    )

@@ -25,6 +25,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         Encoded JWT token
     """
     to_encode = data.copy()
+    if "sub" in to_encode:
+        # JWT spec expects subject to be a string.
+        to_encode["sub"] = str(to_encode["sub"])
 
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -53,6 +56,9 @@ def create_refresh_token(data: dict) -> str:
         Encoded JWT token with longer expiry
     """
     to_encode = data.copy()
+    if "sub" in to_encode:
+        # JWT spec expects subject to be a string.
+        to_encode["sub"] = str(to_encode["sub"])
     expire = datetime.now(timezone.utc) + timedelta(
         days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS
     )

@@ -5,7 +5,7 @@ Used for request/response validation in API endpoints.
 """
 
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from app.models.user import UserRole
 
 
@@ -21,6 +21,14 @@ class UserCreate(UserBase):
     """Schema for creating a new user."""
 
     password: str = Field(..., min_length=8, max_length=100)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_length(cls, value: str) -> str:
+        """Ensure bcrypt-compatible length (<=72 bytes)."""
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Password must be 72 bytes or fewer.")
+        return value
 
 
 class UserUpdate(BaseModel):

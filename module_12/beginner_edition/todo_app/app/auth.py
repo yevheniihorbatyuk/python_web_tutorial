@@ -2,10 +2,10 @@
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-import jwt
+from jose import JWTError, ExpiredSignatureError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthCredentials
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -65,12 +65,12 @@ def decode_access_token(token: str) -> dict:
                 detail="Invalid token",
             )
         return {"user_id": int(user_id), "role": role}
-    except jwt.ExpiredSignatureError:
+    except ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
         )
-    except jwt.InvalidTokenError:
+    except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
@@ -78,7 +78,7 @@ def decode_access_token(token: str) -> dict:
 
 
 async def get_current_user(
-    credentials: HTTPAuthCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(lambda: None),
 ) -> models.User:
     """Get the current authenticated user from JWT token."""

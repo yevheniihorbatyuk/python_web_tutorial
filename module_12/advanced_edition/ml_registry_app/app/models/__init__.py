@@ -9,6 +9,7 @@ from app.models.user import User
 from app.models.ml_model import MLModel, ModelLifecycle, MLFramework, TaskType
 from app.models.experiment import Experiment
 from app.models.model_version import ModelVersion
+from app.models.api_key import APIKey
 
 __all__ = [
     "Base",
@@ -20,4 +21,5 @@ __all__ = [
     "TaskType",
     "Experiment",
     "ModelVersion",
+    "APIKey",
 ]
