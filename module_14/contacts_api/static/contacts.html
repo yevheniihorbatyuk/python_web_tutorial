@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contacts App</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background: #f0f2f5; }
+    .card { border: none; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+    .birthday-badge { font-size: .75rem; }
+    #contactsTable td { vertical-align: middle; }
+    .spinner-border { width: 1.2rem; height: 1.2rem; }
+  </style>
+</head>
+<body>
+
+<!-- Навбар -->
+<nav class="navbar navbar-dark bg-primary px-4 mb-4">
+  <span class="navbar-brand fw-bold">📋 Contacts App</span>
+  <div class="d-flex align-items-center gap-3">
+    <span class="text-white small" id="userEmail"></span>
+    <button class="btn btn-outline-light btn-sm" id="logoutBtn">Вийти</button>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="row g-4">
+
+    <!-- ─── Ліва колонка: список контактів ────────────────────────────────── -->
+    <div class="col-lg-8">
+
+      <!-- Пошук + кнопка додати -->
+      <div class="d-flex gap-2 mb-3">
+        <input type="text" id="searchInput" class="form-control"
+               placeholder="Пошук за іменем або email…">
+        <button class="btn btn-primary text-nowrap" data-bs-toggle="modal"
+                data-bs-target="#addModal">+ Додати</button>
+      </div>
+
+      <!-- Таблиця -->
+      <div class="card">
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0" id="contactsTable">
+            <thead class="table-light">
+              <tr>
+                <th>Ім'я</th>
+                <th>Email</th>
+                <th>Телефон</th>
+                <th>Дата народження</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="contactsTbody">
+              <tr><td colspan="5" class="text-center text-muted py-4">
+                <span class="spinner-border me-2"></span>Завантаження…
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Пагінація (проста) -->
+      <div class="d-flex justify-content-between align-items-center mt-2 text-muted small" id="paginationBar">
+        <span id="pageInfo"></span>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-secondary" id="prevBtn" disabled>← Попередня</button>
+          <button class="btn btn-sm btn-outline-secondary" id="nextBtn" disabled>Наступна →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Права колонка: birthdays + профіль ────────────────────────────── -->
+    <div class="col-lg-4">
+
+      <!-- Birthdays -->
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">🎂 Дні народження (7 днів)</div>
+        <div class="card-body p-0">
+          <ul class="list-group list-group-flush" id="birthdayList">
+            <li class="list-group-item text-muted text-center small">Завантаження…</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Профіль -->
+      <div class="card">
+        <div class="card-header fw-semibold">👤 Профіль</div>
+        <div class="card-body text-center">
+          <img id="avatarImg" src="https://ui-avatars.com/api/?name=U&size=80&rounded=true"
+               class="rounded-circle mb-2" width="80" alt="avatar">
+          <p class="mb-1 small text-muted" id="profileEmail">—</p>
+          <label class="btn btn-sm btn-outline-secondary mt-1">
+            Змінити фото
+            <input type="file" id="avatarInput" accept="image/*" hidden>
+          </label>
+          <div id="avatarMsg" class="small mt-1"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Модальне вікно: додати контакт ────────────────────────────────────── -->
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalTitle">Новий контакт</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editId">
+        <div class="mb-2">
+          <label class="form-label">Ім'я *</label>
+          <input type="text" id="fFirstName" class="form-control" placeholder="Іван" required>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Прізвище *</label>
+          <input type="text" id="fLastName" class="form-control" placeholder="Франко" required>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Email</label>
+          <input type="email" id="fEmail" class="form-control" placeholder="ivan@example.com">
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Телефон</label>
+          <input type="text" id="fPhone" class="form-control" placeholder="+380501234567">
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Дата народження</label>
+          <input type="date" id="fBirthday" class="form-control">
+        </div>
+        <div id="formError" class="text-danger small d-none"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+        <button type="button" class="btn btn-primary" id="saveBtn">Зберегти</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // ─── Налаштування ────────────────────────────────────────────────────────────
+  const BASE = "";
+  const PAGE_SIZE = 20;
+  let skip = 0;
+  let searchQuery = "";
+  let searchTimer = null;
+
+  // ─── Авторизація ─────────────────────────────────────────────────────────────
+  const token = localStorage.getItem("access_token");
+  if (!token) window.location.href = "/app/login.html";
+
+  const headers = { Authorization: `Bearer ${token}` };
+
+  // ─── Утиліта: API запит з авто-редіректом при 401 ───────────────────────────
+  async function apiFetch(path, opts = {}) {
+    const r = await fetch(BASE + path, {
+      ...opts,
+      headers: { ...headers, ...(opts.headers || {}) },
+    });
+    if (r.status === 401) {
+      localStorage.clear();
+      window.location.href = "/app/login.html";
+    }
+    return r;
+  }
+
+  // ─── Профіль ─────────────────────────────────────────────────────────────────
+  async function loadProfile() {
+    const r = await apiFetch("/api/v1/users/me");
+    if (!r.ok) return;
+    const user = await r.json();
+    document.getElementById("userEmail").textContent = user.email;
+    document.getElementById("profileEmail").textContent = user.email;
+    if (user.avatar_url) {
+      document.getElementById("avatarImg").src = user.avatar_url;
+    }
+  }
+
+  // ─── Birthdays ───────────────────────────────────────────────────────────────
+  async function loadBirthdays() {
+    const r = await apiFetch("/api/v1/contacts/birthdays");
+    const list = document.getElementById("birthdayList");
+
+    if (!r.ok) {
+      list.innerHTML = '<li class="list-group-item text-danger small">Помилка завантаження</li>';
+      return;
+    }
+
+    const data = await r.json();
+    if (data.length === 0) {
+      list.innerHTML = '<li class="list-group-item text-muted text-center small">Немає найближчих</li>';
+      return;
+    }
+
+    list.innerHTML = data.map(b => `
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <span>${b.first_name} ${b.last_name}</span>
+        <span class="badge bg-warning text-dark birthday-badge">${b.birthday}</span>
+      </li>
+    `).join("");
+  }
+
+  // ─── Список контактів ─────────────────────────────────────────────────────────
+  async function loadContacts() {
+    const tbody = document.getElementById("contactsTbody");
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">' +
+      '<span class="spinner-border me-2"></span>Завантаження…</td></tr>';
+
+    const params = new URLSearchParams({ skip, limit: PAGE_SIZE });
+    if (searchQuery) params.set("search", searchQuery);
+
+    const r = await apiFetch(`/api/v1/contacts/?${params}`);
+    if (!r.ok) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Помилка</td></tr>';
+      return;
+    }
+
+    const contacts = await r.json();
+
+    document.getElementById("pageInfo").textContent =
+      `Показано: ${skip + 1}–${skip + contacts.length}`;
+    document.getElementById("prevBtn").disabled = skip === 0;
+    document.getElementById("nextBtn").disabled = contacts.length < PAGE_SIZE;
+
+    if (contacts.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Контакти не знайдені</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = contacts.map(c => `
+      <tr>
+        <td>${c.first_name} ${c.last_name}</td>
+        <td>${c.email || "—"}</td>
+        <td>${c.phone || "—"}</td>
+        <td>${c.birthday || "—"}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-secondary me-1"
+                  onclick="openEdit(${JSON.stringify(c).replace(/"/g, '&quot;')})">✏️</button>
+          <button class="btn btn-sm btn-outline-danger"
+                  onclick="deleteContact(${c.id})">🗑</button>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  // ─── Пошук з debounce ─────────────────────────────────────────────────────────
+  document.getElementById("searchInput").addEventListener("input", (e) => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      searchQuery = e.target.value.trim();
+      skip = 0;
+      loadContacts();
+    }, 300);
+  });
+
+  // ─── Пагінація ───────────────────────────────────────────────────────────────
+  document.getElementById("prevBtn").addEventListener("click", () => {
+    skip = Math.max(0, skip - PAGE_SIZE);
+    loadContacts();
+  });
+  document.getElementById("nextBtn").addEventListener("click", () => {
+    skip += PAGE_SIZE;
+    loadContacts();
+  });
+
+  // ─── Форма: відкрити для редагування ─────────────────────────────────────────
+  function openEdit(contact) {
+    document.getElementById("modalTitle").textContent = "Редагувати контакт";
+    document.getElementById("editId").value = contact.id;
+    document.getElementById("fFirstName").value = contact.first_name;
+    document.getElementById("fLastName").value = contact.last_name;
+    document.getElementById("fEmail").value = contact.email || "";
+    document.getElementById("fPhone").value = contact.phone || "";
+    document.getElementById("fBirthday").value = contact.birthday || "";
+    new bootstrap.Modal(document.getElementById("addModal")).show();
+  }
+
+  // ─── Форма: очистити при відкритті "Додати" ──────────────────────────────────
+  document.getElementById("addModal").addEventListener("show.bs.modal", (e) => {
+    if (!e.relatedTarget) return;  // відкрито через openEdit — не очищати
+    document.getElementById("modalTitle").textContent = "Новий контакт";
+    document.getElementById("editId").value = "";
+    ["fFirstName","fLastName","fEmail","fPhone","fBirthday"].forEach(id => {
+      document.getElementById(id).value = "";
+    });
+    document.getElementById("formError").classList.add("d-none");
+  });
+
+  // ─── Зберегти контакт (create або update) ────────────────────────────────────
+  document.getElementById("saveBtn").addEventListener("click", async () => {
+    const id = document.getElementById("editId").value;
+    const payload = {
+      first_name: document.getElementById("fFirstName").value.trim(),
+      last_name: document.getElementById("fLastName").value.trim(),
+      email: document.getElementById("fEmail").value.trim() || null,
+      phone: document.getElementById("fPhone").value.trim() || null,
+      birthday: document.getElementById("fBirthday").value || null,
+    };
+
+    const errEl = document.getElementById("formError");
+    if (!payload.first_name || !payload.last_name) {
+      errEl.textContent = "Ім'я та прізвище обов'язкові.";
+      errEl.classList.remove("d-none");
+      return;
+    }
+    errEl.classList.add("d-none");
+
+    const url = id ? `/api/v1/contacts/${id}` : "/api/v1/contacts/";
+    const method = id ? "PATCH" : "POST";
+
+    const r = await apiFetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (r.ok) {
+      bootstrap.Modal.getInstance(document.getElementById("addModal")).hide();
+      loadContacts();
+      loadBirthdays();
+    } else {
+      const data = await r.json();
+      errEl.textContent = data.detail || "Помилка збереження.";
+      errEl.classList.remove("d-none");
+    }
+  });
+
+  // ─── Видалити контакт ─────────────────────────────────────────────────────────
+  async function deleteContact(id) {
+    if (!confirm("Видалити контакт?")) return;
+    const r = await apiFetch(`/api/v1/contacts/${id}`, { method: "DELETE" });
+    if (r.status === 204) {
+      loadContacts();
+      loadBirthdays();
+    }
+  }
+
+  // ─── Аватар ──────────────────────────────────────────────────────────────────
+  document.getElementById("avatarInput").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const msgEl = document.getElementById("avatarMsg");
+    msgEl.textContent = "Завантажую…";
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const r = await apiFetch("/api/v1/users/me/avatar", {
+      method: "POST",
+      body: formData,
+      // Content-Type: multipart/form-data — браузер встановлює автоматично
+    });
+
+    if (r.ok) {
+      const user = await r.json();
+      document.getElementById("avatarImg").src = user.avatar_url + `?t=${Date.now()}`;
+      msgEl.textContent = "✅ Оновлено";
+    } else {
+      const data = await r.json();
+      msgEl.textContent = `❌ ${data.detail || "Помилка"}`;
+    }
+  });
+
+  // ─── Logout ──────────────────────────────────────────────────────────────────
+  document.getElementById("logoutBtn").addEventListener("click", async () => {
+    const rt = localStorage.getItem("refresh_token");
+    if (rt) {
+      // Занести refresh token у Redis blacklist
+      await apiFetch("/api/v1/auth/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: rt }),
+      }).catch(() => {});
+    }
+    localStorage.clear();
+    window.location.href = "/app/login.html";
+  });
+
+  // ─── Ініціалізація ────────────────────────────────────────────────────────────
+  loadProfile();
+  loadContacts();
+  loadBirthdays();
+</script>
+</body>
+</html>

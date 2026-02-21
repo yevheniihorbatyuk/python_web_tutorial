@@ -21,7 +21,7 @@ init(autoreset=True)
 # 1. СИНХРОННИЙ КОД (Повільний)
 # ============================================
 
-def sync_task(name: str, duration: int):
+def sync_task(name: str, duration: int) -> str:
     """Синхронна функція, яка блокує виконання"""
     print(f"{Fore.RED}[SYNC] Починаю {name}... (триватиме {duration}с)")
     time.sleep(duration)  # БЛОКУЄ весь код!
@@ -29,7 +29,7 @@ def sync_task(name: str, duration: int):
     return f"Результат {name}"
 
 
-def run_sync_example():
+def run_sync_example() -> None:
     """Запустити синхронні задачі послідовно"""
     print(f"\n{Fore.YELLOW}{'=' * 60}")
     print(f"{Fore.YELLOW}СИНХРОННИЙ КОД - все виконується ПОСЛІДОВНО")
@@ -50,7 +50,7 @@ def run_sync_example():
 # 2. АСИНХРОННИЙ КОД (Швидкий!)
 # ============================================
 
-async def async_task(name: str, duration: int):
+async def async_task(name: str, duration: int) -> str:
     """Асинхронна функція, яка НЕ блокує виконання"""
     print(f"{Fore.GREEN}[ASYNC] Починаю {name}... (триватиме {duration}с)")
     await asyncio.sleep(duration)  # Передає управління Event Loop
@@ -58,7 +58,7 @@ async def async_task(name: str, duration: int):
     return f"Результат {name}"
 
 
-async def run_async_example():
+async def run_async_example() -> None:
     """Запустити асинхронні задачі паралельно"""
     print(f"\n{Fore.YELLOW}{'=' * 60}")
     print(f"{Fore.YELLOW}АСИНХРОННИЙ КОД - все виконується ПАРАЛЕЛЬНО")
@@ -82,7 +82,7 @@ async def run_async_example():
 # 3. ВІЗУАЛІЗАЦІЯ EVENT LOOP
 # ============================================
 
-async def visualize_event_loop():
+async def visualize_event_loop() -> None:
     """Показати як Event Loop керує задачами"""
     print(f"\n{Fore.CYAN}{'=' * 60}")
     print(f"{Fore.CYAN}ВІЗУАЛІЗАЦІЯ EVENT LOOP")
@@ -158,7 +158,7 @@ async def fetch_user_profile(user_id: int) -> dict:
     return profile
 
 
-async def practical_example():
+async def practical_example() -> None:
     """Практичний приклад: завантаження даних кількох користувачів"""
     print(f"\n{Fore.YELLOW}{'=' * 60}")
     print(f"{Fore.YELLOW}ПРАКТИЧНИЙ ПРИКЛАД: Завантаження профілів")
@@ -187,7 +187,7 @@ async def practical_example():
 # 5. ОБРОБКА ПОМИЛОК
 # ============================================
 
-async def task_with_error(name: str, should_fail: bool = False):
+async def task_with_error(name: str, should_fail: bool = False) -> str:
     """Задача, яка може завершитись з помилкою"""
     print(f"{Fore.BLUE}[{name}] Починаю...")
     await asyncio.sleep(1)
@@ -200,7 +200,7 @@ async def task_with_error(name: str, should_fail: bool = False):
     return f"Результат {name}"
 
 
-async def error_handling_example():
+async def error_handling_example() -> None:
     """Демонстрація обробки помилок в async коді"""
     print(f"\n{Fore.YELLOW}{'=' * 60}")
     print(f"{Fore.YELLOW}ОБРОБКА ПОМИЛОК")
@@ -229,7 +229,7 @@ async def error_handling_example():
 # ГОЛОВНА ФУНКЦІЯ
 # ============================================
 
-async def main():
+async def main() -> None:
     """Запустити всі демонстрації"""
     print(f"\n{Fore.CYAN}{'=' * 60}")
     print(f"{Fore.CYAN}  МОДУЛЬ 6.1: АСИНХРОННЕ ПРОГРАМУВАННЯ В PYTHON")

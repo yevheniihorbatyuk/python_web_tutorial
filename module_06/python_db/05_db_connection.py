@@ -35,7 +35,9 @@ def demo_basic_connection():
     print(f"{Fore.CYAN}{'=' * 70}\n")
 
     try:
-        # Підключення вручну
+        # ⚠️  ТІЛЬКИ ДЛЯ ДЕМОНСТРАЦІЇ raw-підключення!
+        # У реальному проекті: utils/helpers.py читає credentials з .env файлу
+        # Причина: git history зберігає credentials назавжди навіть після їх видалення
         conn = psycopg2.connect(
             host="localhost",
             port="5432",

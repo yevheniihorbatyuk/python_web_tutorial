@@ -27,6 +27,18 @@ Module 8.1: SQLAlchemy ORM - Advanced Patterns
 Author: Senior Data Science Engineer
 """
 
+# ─── Нотатка про стиль коду ──────────────────────────────────────────────────
+# Цей файл: SQLAlchemy 1.x/2.0-compatible стиль
+#   Column(), Integer, declarative_base(), sessionmaker(bind=engine)
+#   Широко зустрічається у legacy проектах (2018-2023).
+#
+# Сучасний SQLAlchemy 2.0 стиль (рекомендовано для нових проектів):
+#   mapped_column(), Mapped[], DeclarativeBase, async_sessionmaker()
+#   Приклад: ./sqlalchemy_examples/models.py
+#
+# Обидва вивчаються навмисно — на реальних проектах ти зустрінеш обидва.
+# ─────────────────────────────────────────────────────────────────────────────
+
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from sqlalchemy import (

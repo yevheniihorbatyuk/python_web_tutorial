@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String
@@ -58,7 +58,7 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(200), nullable=False)
     address_id: Mapped[int] = mapped_column(ForeignKey("addresses.id", ondelete="SET NULL"))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     address: Mapped[Address] = relationship(back_populates="users")
 
     def __repr__(self) -> str:

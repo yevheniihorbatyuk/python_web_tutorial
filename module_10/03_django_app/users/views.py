@@ -28,8 +28,13 @@ class CountryListView(generic.ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        """Get countries with city count annotation."""
-        return Country.objects.annotate(
+        """Get countries with city count annotation.
+
+        annotate(city_count=...) → один SQL з COUNT замість N окремих запитів.
+        prefetch_related('city_set') → якщо шаблон звертається до city_set,
+        Django виконає 1 окремий SELECT IN (...) замість N запитів (N+1 fix).
+        """
+        return Country.objects.prefetch_related('city_set').annotate(
             city_count=Count('city')
         ).order_by('name')
 
@@ -50,6 +55,10 @@ class CountryDetailView(generic.DetailView):
     def get_context_data(self, **kwargs):
         """Add related cities to context."""
         context = super().get_context_data(**kwargs)
+        # prefetch_related уникає N+1: без нього кожне місто у шаблоні → окремий SELECT.
+        # .all().order_by() безпечно — Django виконає один запит з ORDER BY.
+        # Альтернатива: оголосити queryset = Country.objects.prefetch_related('city_set')
+        # на рівні класу, тоді Django prefetch автоматично.
         context['cities'] = self.object.city_set.all().order_by('name')
         context['user_count'] = self.object.user_count()
         return context

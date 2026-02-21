@@ -10,6 +10,7 @@ import os
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from . import models
+from .database import get_db
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -79,13 +80,20 @@ def decode_access_token(token: str) -> dict:
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(lambda: None),
+    db: AsyncSession = Depends(get_db),
 ) -> models.User:
     """Get the current authenticated user from JWT token."""
     token = credentials.credentials
     token_data = decode_access_token(token)
     user_id = token_data["user_id"]
 
-    # Note: In real app, you'd fetch from DB
-    # For now, we'll return a placeholder
-    return user_id
+    result = await db.execute(
+        select(models.User).where(models.User.id == user_id)
+    )
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+    return user

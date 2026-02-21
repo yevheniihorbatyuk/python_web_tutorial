@@ -164,7 +164,7 @@ async def fetch_multiple_async(urls: List[str]) -> List[Dict]:
 # 3. ПОРІВНЯННЯ SYNC VS ASYNC
 # ============================================
 
-async def compare_sync_vs_async(urls: List[str], description: str):
+async def compare_sync_vs_async(urls: List[str], description: str) -> None:
     """Порівняти синхронний та асинхронний підходи"""
     print(f"\n{Fore.CYAN}{'=' * 70}")
     print(f"{Fore.CYAN}ПОРІВНЯННЯ: {description}")
@@ -197,7 +197,7 @@ async def compare_sync_vs_async(urls: List[str], description: str):
 # 4. ДОДАТКОВІ МОЖЛИВОСТІ AIOHTTP
 # ============================================
 
-async def advanced_aiohttp_features():
+async def advanced_aiohttp_features() -> None:
     """Демонстрація додаткових можливостей aiohttp"""
     print(f"\n{Fore.MAGENTA}{'=' * 70}")
     print(f"{Fore.MAGENTA}ДОДАТКОВІ МОЖЛИВОСТІ AIOHTTP")
@@ -262,7 +262,7 @@ async def fetch_github_user(session: aiohttp.ClientSession, username: str) -> Di
         return {"username": username, "success": False, "error": str(e)}
 
 
-async def github_scraper_example():
+async def github_scraper_example() -> None:
     """Приклад: завантажити дані про кількох GitHub користувачів"""
     print(f"\n{Fore.MAGENTA}{'=' * 70}")
     print(f"{Fore.MAGENTA}ПРАКТИЧНИЙ ПРИКЛАД: GitHub Scraper")
@@ -296,7 +296,7 @@ async def github_scraper_example():
 # ГОЛОВНА ФУНКЦІЯ
 # ============================================
 
-async def main():
+async def main() -> None:
     """Запустити всі демонстрації"""
     print(f"\n{Fore.CYAN}{'=' * 70}")
     print(f"{Fore.CYAN}  МОДУЛЬ 6.2: АСИНХРОННІ HTTP ЗАПИТИ З AIOHTTP")

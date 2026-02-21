@@ -10,7 +10,7 @@ Learn:
 No database needed - everything in memory for learning.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from pydantic import BaseModel
 from passlib.context import CryptContext
@@ -99,13 +99,13 @@ def create_access_token(
         expires_delta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     # Calculate expiration time
-    expire = datetime.utcnow() + expires_delta
+    expire = datetime.now(timezone.utc) + expires_delta
 
     # Payload to encode
     to_encode = {
         "sub": username,  # "subject" - who the token is for
         "exp": expire,    # expiration time
-        "iat": datetime.utcnow()  # issued at
+        "iat": datetime.now(timezone.utc)  # issued at
     }
 
     # Encode JWT
