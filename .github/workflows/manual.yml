@@ -10,7 +10,6 @@ jobs:
   tests:
     runs-on: ubuntu-latest
 
-    # Описуємо сервіси, які потрібні для інтеграційних тестів
     services:
       postgres:
         image: postgres:16-alpine
@@ -37,52 +36,70 @@ jobs:
           --health-retries 5
 
     steps:
-      # 1. Клонуємо репозиторій
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Встановлюємо Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # або ваша версія
+          python-version: '3.11'
 
-      # 3. Встановлюємо залежності
-      # Важливо: переходимо в папку проєкту перед інсталяцією
       - name: Install dependencies
+        working-directory: module_14/contacts_api
         run: |
           python -m pip install --upgrade pip
-          if [ -f module_14/contacts_api/requirements.txt ]; then 
-            pip install -r module_14/contacts_api/requirements.txt; 
-          fi
-          pip install pytest pytest-cov httpx
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov httpx aiosqlite
 
-      # 4. Запуск Unit тестів (швидкі, не потребують БД)
       - name: Run Unit Tests
-        working-directory: ./module_14/contacts_api
-        run: |
-          pytest tests/unit/ --cov=src
-
-      # 5. Запуск Integration тестів (потребують Postgres & Redis)
-      # Передаємо змінні оточення для підключення до сервісів
-      - name: Run Integration Tests
-        working-directory: ./module_14/contacts_api
+        working-directory: module_14/contacts_api
         env:
-          DATABASE_URL: postgresql+psycopg2://postgres:testpassword@localhost:5432/test_db
-          REDIS_URL: redis://localhost:6379/0
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          JWT_SECRET_KEY: "ci-test-secret-key-long-enough"
+          JWT_REFRESH_SECRET: "ci-test-refresh-secret-long-enough"
+          EMAIL_TOKEN_SECRET: "ci-test-email-secret-long-enough"
+          REDIS_URL: "redis://localhost:6379/0"
+          MAIL_USERNAME: "test@example.com"
+          MAIL_PASSWORD: "testpassword"
+          MAIL_FROM: "test@example.com"
+          MAIL_SERVER: "localhost"
+          CLOUDINARY_CLOUD_NAME: "demo"
+          CLOUDINARY_API_KEY: "demo"
+          CLOUDINARY_API_SECRET: "demo"
         run: |
-          pytest tests/integration/ --cov=src --cov-append
+          pytest tests/unit/ -v --cov=app --cov-report=xml --no-cov-on-fail
 
+      - name: Run Integration Tests
+        working-directory: module_14/contacts_api
+        env:
+          DATABASE_URL: "postgresql+asyncpg://postgres:testpassword@localhost:5432/test_db"
+          JWT_SECRET_KEY: "ci-test-secret-key-long-enough"
+          JWT_REFRESH_SECRET: "ci-test-refresh-secret-long-enough"
+          EMAIL_TOKEN_SECRET: "ci-test-email-secret-long-enough"
+          REDIS_URL: "redis://localhost:6379/0"
+          MAIL_USERNAME: "test@example.com"
+          MAIL_PASSWORD: "testpassword"
+          MAIL_FROM: "test@example.com"
+          MAIL_SERVER: "localhost"
+          CLOUDINARY_CLOUD_NAME: "demo"
+          CLOUDINARY_API_KEY: "demo"
+          CLOUDINARY_API_SECRET: "demo"
+        run: |
+          pytest tests/integration/ -v --cov=app --cov-report=xml --cov-append --cov-fail-under=80
 
-# НОВИЙ БЛОК: Деплой на Render
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: module_14/contacts_api/coverage.xml
+          fail_ci_if_error: false
+
   deploy:
     name: Deploy to Render
-    needs: tests # Деплой почнеться ТІЛЬКИ якщо тести пройшли
+    needs: tests
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/mod_14' # Тільки для пушів у гілку mod_14
+    if: github.event_name == 'push' && github.ref == 'refs/heads/mod_14'
 
     steps:
       - name: Trigger Render Deploy Hook
         run: |
           curl -f "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
-

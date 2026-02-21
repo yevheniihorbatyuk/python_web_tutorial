@@ -8,6 +8,8 @@ Registers:
   - 429 error handler for rate limit exceeded responses
 """
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -55,4 +57,5 @@ async def health() -> dict:
 # ─── Static UI ───────────────────────────────────────────────────────────────
 # Монтується після роутерів щоб /api/v1/* мав пріоритет.
 # Відкрий: http://localhost:8000/app/login.html
-app.mount("/app", StaticFiles(directory="static", html=True), name="static")
+if os.path.isdir("static"):
+    app.mount("/app", StaticFiles(directory="static", html=True), name="static")
