@@ -1,0 +1,74 @@
+name: CI/CD for Contacts API Tests
+
+on:
+  push:
+    branches: [ mod_14 ]
+  pull_request:
+    branches: [ mod_14 ]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    # Описуємо сервіси, які потрібні для інтеграційних тестів
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # 1. Клонуємо репозиторій
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Встановлюємо Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' # або ваша версія
+
+      # 3. Встановлюємо залежності
+      # Важливо: переходимо в папку проєкту перед інсталяцією
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f module_14/contacts_api/requirements.txt ]; then 
+            pip install -r module_14/contacts_api/requirements.txt; 
+          fi
+          pip install pytest pytest-cov httpx
+
+      # 4. Запуск Unit тестів (швидкі, не потребують БД)
+      - name: Run Unit Tests
+        working-directory: ./module_14/contacts_api
+        run: |
+          pytest tests/unit/ --cov=src
+
+      # 5. Запуск Integration тестів (потребують Postgres & Redis)
+      # Передаємо змінні оточення для підключення до сервісів
+      - name: Run Integration Tests
+        working-directory: ./module_14/contacts_api
+        env:
+          DATABASE_URL: postgresql+psycopg2://postgres:testpassword@localhost:5432/test_db
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          pytest tests/integration/ --cov=src --cov-append
