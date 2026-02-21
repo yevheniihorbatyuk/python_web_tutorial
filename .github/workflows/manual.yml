@@ -72,3 +72,17 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
         run: |
           pytest tests/integration/ --cov=src --cov-append
+
+
+# НОВИЙ БЛОК: Деплой на Render
+  deploy:
+    name: Deploy to Render
+    needs: tests # Деплой почнеться ТІЛЬКИ якщо тести пройшли
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/mod_14' # Тільки для пушів у гілку mod_14
+
+    steps:
+      - name: Trigger Render Deploy Hook
+        run: |
+          curl -f "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+
