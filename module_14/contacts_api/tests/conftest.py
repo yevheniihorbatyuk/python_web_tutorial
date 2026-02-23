@@ -18,10 +18,12 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import StaticPool
 from unittest.mock import AsyncMock, patch
+from limits.storage import MemoryStorage
 
 from app.main import app
 from app.database import Base, get_db
 from app.core import cache as cache_module
+from app.core.rate_limit import limiter
 
 # ─── Database fixture ─────────────────────────────────────────────────────────
 
@@ -65,6 +67,11 @@ async def client(async_session):
     """
     # Override DB
     app.dependency_overrides[get_db] = lambda: async_session
+
+    # Override rate limiter storage with in-memory backend (no Redis needed)
+    mem_storage = MemoryStorage()
+    limiter._storage = mem_storage
+    limiter._limiter.storage = mem_storage
 
     # Mock Redis so tests don't need a Redis server
     mock_redis = AsyncMock()

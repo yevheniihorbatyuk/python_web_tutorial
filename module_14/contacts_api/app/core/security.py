@@ -13,24 +13,23 @@ Three different secrets add defence-in-depth:
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import bcrypt
 from jose import jwt, JWTError
-from passlib.context import CryptContext
 
 from app.config import get_settings
 
 settings = get_settings()
 
-_pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # ─── Password helpers ───────────────────────────────────────────────────────
 
 
 def hash_password(plain: str) -> str:
-    return _pwd_ctx.hash(plain)
+    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return _pwd_ctx.verify(plain, hashed)
+    return bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
 # ─── Token creation ──────────────────────────────────────────────────────────

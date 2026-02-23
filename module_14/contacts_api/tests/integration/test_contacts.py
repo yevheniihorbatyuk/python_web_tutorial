@@ -164,9 +164,10 @@ async def test_birthdays_endpoint_cached_on_second_call(client, auth_headers):
     (In conftest the mock always returns None on get — cache miss —
     but we verify it was called, which is the cache lookup step.)
     """
+    import app.api.v1.contacts as contacts_module
     from app.core import cache as cache_module
 
-    # Patch get_or_set_cache to track calls
+    # Patch get_or_set_cache where it is actually used (contacts router)
     call_count = {"n": 0}
     original = cache_module.get_or_set_cache
 
@@ -174,7 +175,7 @@ async def test_birthdays_endpoint_cached_on_second_call(client, auth_headers):
         call_count["n"] += 1
         return await original(key, ttl, loader)
 
-    with patch.object(cache_module, "get_or_set_cache", side_effect=counting_cache):
+    with patch.object(contacts_module, "get_or_set_cache", side_effect=counting_cache):
         await client.get("/api/v1/contacts/birthdays", headers=auth_headers)
         await client.get("/api/v1/contacts/birthdays", headers=auth_headers)
 
